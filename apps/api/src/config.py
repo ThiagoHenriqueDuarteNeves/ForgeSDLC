@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     app_name: str = "forge-api"
     app_version: str = "0.1.0"
 
+    # Origens permitidas (CORS) para a web em dev. Lista separada por vírgula
+    # via env CORS_ORIGINS. Default cobre as portas comuns do Next dev
+    # (3000, e 3001 quando a 3000 está ocupada).
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
     # Provider de LLM (DeepSeek V4, formato OpenAI) — ver PRD §3.1.
     # Preenchido de verdade a partir da Fase 3; declarado aqui para o factory
     # src/llm.py existir desde a fundação.

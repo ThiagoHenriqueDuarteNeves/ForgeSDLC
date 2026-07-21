@@ -15,7 +15,7 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 # Em dev, a web (Next em :3000) consome a API (:8000) via browser.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_origins_list,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
