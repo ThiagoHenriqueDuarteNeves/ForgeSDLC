@@ -121,6 +121,7 @@ function ProjectPanel({
   const [paste, setPaste] = useState("");
   const [drag, setDrag] = useState(false);
   const [runId, setRunId] = useState<number | null>(null);
+  const [openRun, setOpenRun] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -260,13 +261,33 @@ function ProjectPanel({
         </tbody>
       </table>
       </section>
+
+      <section style={{ ...card, marginTop: "1.5rem", display: "flex", gap: 8, alignItems: "center" }}>
+        <span style={{ opacity: 0.7, fontSize: "0.9rem" }}>Abrir run existente nº</span>
+        <input
+          value={openRun}
+          onChange={(e) => setOpenRun(e.target.value.replace(/\D/g, ""))}
+          onKeyDown={(e) => e.key === "Enter" && openRun && setRunId(Number(openRun))}
+          placeholder="ex.: 24"
+          style={{ ...inputStyle, flex: "0 0 120px" }}
+        />
+        <button onClick={() => openRun && setRunId(Number(openRun))} style={btnStyle}>
+          Abrir
+        </button>
+        {runId !== null && (
+          <span style={{ opacity: 0.6, fontSize: "0.85rem" }}>
+            run ativo: <strong style={{ color: "#34d399" }}>#{runId}</strong>
+          </span>
+        )}
+      </section>
+
       <GrillPanel projectId={project.id} onError={onError} onRun={setRunId} />
       {runId !== null && (
         <>
-          <RegrasPanel runId={runId} onError={onError} />
-          <HistoriasPanel runId={runId} onError={onError} />
-          <E5Panel runId={runId} onError={onError} />
-          <FatiasPanel runId={runId} onError={onError} />
+          <RegrasPanel key={`r-${runId}`} runId={runId} onError={onError} />
+          <HistoriasPanel key={`h-${runId}`} runId={runId} onError={onError} />
+          <E5Panel key={`e5-${runId}`} runId={runId} onError={onError} />
+          <FatiasPanel key={`f-${runId}`} runId={runId} onError={onError} />
         </>
       )}
     </>
