@@ -8,7 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # .env local: na raiz do repo. Ao rodar de apps/api, sobe dois níveis.
+    # No container as variáveis vêm por ambiente (os.environ tem prioridade).
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../../.env"), extra="ignore"
+    )
 
     app_name: str = "forge-api"
     app_version: str = "0.1.0"

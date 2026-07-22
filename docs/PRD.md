@@ -95,11 +95,15 @@ estrito (a camada 3 vira rede de segurança em vez de caminho principal).
 `Chat Prefix Completion` fica disponível como recurso extra caso algum nó
 precise forçar o início da saída.
 
-> **A validar no primeiro spike da Fase 3:** a documentação não informa se
-> *tool calls funcionam com thinking mode ligado*. Isso afeta justamente os
-> nós `deepseek-v4-pro` (grill, extrator, crítico), que rodam com thinking
-> por padrão. Se houver conflito, esses nós caem para `json_object` e a
-> camada 3 assume o peso.
+> **Resolvido no spike da Fase 3 (2026-07-22):** confirmado empiricamente
+> que **forced tool call conflita com o thinking mode** da DeepSeek
+> (`400 "Thinking mode does not support this tool_choice"`), e que o
+> `response_format` de JSON Schema estrito também não é aceito
+> (`400 "This response_format type is unavailable now"`). Decisão: a
+> `structured_call` usa **uniformemente** `response_format=json_object` +
+> JSON Schema injetado no prompt + validação Pydantic + re-prompt (camadas
+> 1-fallback/2/3), que funciona tanto nos nós `pro` (thinking on) quanto no
+> `flash`. Implementado em `apps/api/src/llm.py`, validado contra a DeepSeek.
 
 **Claude Code não é dependência de runtime.** Ele é a ferramenta com que o
 Forge é desenvolvido (execução de `docs/FASES.md`, comando `/nova-fatia`) e a
