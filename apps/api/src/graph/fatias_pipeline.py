@@ -17,10 +17,10 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import select
 
-from ..agents.fatiador import fatiar, validar_fatias
+from ..agents.fatiador import fatiar, injetar_cenarios, validar_fatias
 from ..agents.schemas import MapaFatias
 from ..db import SessionLocal
-from ..models import Run, Slice
+from ..models import Epic, Run, Slice, Story, TestScenario
 from ..services_regras import historias_aprovadas, persistir_fatias
 from .pipeline import _checkpointer, dossie_do_run
 
@@ -99,16 +99,34 @@ def _thread(run_id: int) -> dict:
     return {"configurable": {"thread_id": f"{run_id}-e6"}}
 
 
+def _cenarios_map(session, run_id: int) -> dict[int, list[dict]]:
+    """{story_id: [{kind, gherkin}]} — cenários atuais da E5 (para injetar)."""
+    out: dict[int, list[dict]] = {}
+    for cen in session.scalars(
+        select(TestScenario)
+        .join(Story)
+        .join(Epic)
+        .where(Epic.run_id == run_id)
+        .order_by(TestScenario.id)
+    ):
+        out.setdefault(cen.story_id, []).append(
+            {"kind": cen.kind, "gherkin": cen.gherkin}
+        )
+    return out
+
+
 def _estado(run_id: int) -> dict:
     session = SessionLocal()
     try:
+        cenarios = _cenarios_map(session, run_id)
         fatias = [
             {
                 "code": s.code,
                 "title": s.title,
                 "status": s.status,
                 "package_path": s.package_path,
-                "package_md": s.package_md,
+                # Cenários montados na leitura: rodar a E5 depois reflete aqui.
+                "package_md": injetar_cenarios(s.package_md or "", cenarios),
             }
             for s in session.scalars(
                 select(Slice).where(Slice.run_id == run_id).order_by(Slice.code)

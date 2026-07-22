@@ -9,10 +9,15 @@ Definition of Done é fixo, garantindo fidelidade.
 
 from __future__ import annotations
 
+import re
+
 from ..instructions import load_instructions
 from ..llm import structured_call
 from .grill import _corpus_context
 from .schemas import Fatia, MapaFatias
+
+_SEC_CENARIOS = "## Cenários de teste (do designer de testes)"
+_SEC_DOD = "## Definition of Done"
 
 # Definition of Done fixo do template (instructions/fatiador.md).
 _DOD = [
@@ -121,14 +126,7 @@ def renderizar_pacote(
     linhas += ["", "## Modelo de dados", fatia.get("modelo_dados", "")]
     linhas += ["", "## UI", fatia.get("ui", "")]
 
-    linhas += ["", "## Cenários de teste (do designer de testes)"]
-    algum = False
-    for hid in ids:
-        for c in cenarios_map.get(hid, []):
-            algum = True
-            linhas.append(f"- [{c.get('kind', '')}] {c.get('gherkin', '')}")
-    if not algum:
-        linhas.append("_(rode a E5/designer de testes para popular os cenários)_")
+    linhas += ["", _cenarios_secao(ids, cenarios_map)]
 
     linhas += ["", "## Definition of Done"]
     linhas += [f"- [ ] {item}" for item in _DOD]
@@ -138,3 +136,31 @@ def renderizar_pacote(
     linhas += [f"{i}. {p}" for i, p in enumerate(passos, start=1)] or ["_(a definir)_"]
 
     return "\n".join(linhas) + "\n"
+
+
+def _cenarios_secao(ids: list[int], cenarios_map: dict[int, list[dict]]) -> str:
+    linhas = [_SEC_CENARIOS]
+    algum = False
+    for hid in ids:
+        for c in cenarios_map.get(hid, []):
+            algum = True
+            linhas.append(f"- [{c.get('kind', '')}] {c.get('gherkin', '')}")
+    if not algum:
+        linhas.append("_(rode a E5/designer de testes para popular os cenários)_")
+    return "\n".join(linhas)
+
+
+def injetar_cenarios(package_md: str, cenarios_map: dict[int, list[dict]]) -> str:
+    """Re-monta a seção de cenários do pacote a partir do banco (na leitura).
+
+    Só a seção de cenários depende da E5, que pode rodar DEPOIS do fatiador.
+    Em vez de congelar os cenários na geração, injetamos os atuais na hora de
+    ler — assim rodar a E5 depois reflete nos pacotes sem re-fatiar. Os ids das
+    histórias vêm dos próprios cabeçalhos `### [id=N]` do pacote.
+    """
+    if _SEC_CENARIOS not in package_md or _SEC_DOD not in package_md:
+        return package_md
+    ids = [int(x) for x in re.findall(r"### \[id=(\d+)\]", package_md)]
+    pre = package_md[: package_md.index(_SEC_CENARIOS)]
+    pos = package_md[package_md.index(_SEC_DOD) :]
+    return f"{pre}{_cenarios_secao(ids, cenarios_map)}\n\n{pos}"

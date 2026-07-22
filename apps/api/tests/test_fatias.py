@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.agents.fatiador import (
     fatia_cobre_camadas,
+    injetar_cenarios,
     renderizar_pacote,
     validar_fatias,
 )
@@ -100,6 +101,21 @@ def test_render_pacote_tem_secoes_e_cenarios():
     assert "## Definition of Done" in md
     assert "[feliz] Dado feliz" in md  # cenário injetado do banco
     assert "Como PO quero cadastrar" in md
+
+
+def test_injetar_cenarios_na_leitura_substitui_placeholder():
+    # pacote gerado SEM cenários (E5 ainda não rodou) → placeholder.
+    fatia = _fatia(historia_ids=[7]).model_dump()
+    md_sem = renderizar_pacote(
+        "F-001", fatia, {7: {"title": "US", "gherkin": "G", "rn_codes": []}}, {}
+    )
+    assert "rode a E5" in md_sem
+    # na leitura, injeta os cenários que a E5 gerou depois (parseando [id=7]).
+    md_com = injetar_cenarios(md_sem, {7: [{"kind": "feliz", "gherkin": "Cenário feliz"}]})
+    assert "rode a E5" not in md_com
+    assert "[feliz] Cenário feliz" in md_com
+    assert "## Definition of Done" in md_com  # resto do pacote intacto
+    assert "## Contrato de API proposto" in md_com
 
 
 # ─── persistência ──────────────────────────────────────────────────────────
