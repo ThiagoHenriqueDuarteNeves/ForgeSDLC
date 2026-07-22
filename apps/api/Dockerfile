@@ -10,8 +10,12 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# Código da aplicação.
+# Código da aplicação + migrations (para o container aplicar o schema sozinho).
 COPY src ./src
+COPY migrations ./migrations
+COPY alembic.ini ./
 
 EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Aplica migrations pendentes e sobe a API. O compose garante que o db já
+# está healthy antes deste passo (depends_on: service_healthy).
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000"]

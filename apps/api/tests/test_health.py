@@ -8,11 +8,13 @@ client = TestClient(app)
 
 
 def test_health_ok():
+    # Requer o Postgres de pé (docker compose up -d db). O /health faz SELECT 1.
     resp = client.get("/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
     assert body["service"] == "forge-api"
+    assert body["database"] == "up"
     assert "version" in body
 
 

@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     max_usd_per_run: float = 0.0
 
     # Banco — usado a partir da Fase 1b.
-    database_url: str = ""
+    # Default aponta para localhost (execuções no host: alembic, testes).
+    # Dentro do container, o docker-compose sobrescreve para host `db`.
+    database_url: str = "postgresql+psycopg://forge:forge@localhost:5432/forge"
 
 
 settings = Settings()
