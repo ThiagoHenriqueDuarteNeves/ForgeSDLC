@@ -14,6 +14,7 @@ estrito:
 from __future__ import annotations
 
 import json
+import time
 from functools import lru_cache
 from typing import TypeVar
 
@@ -114,6 +115,7 @@ def structured_call(
     Retorna uma instância validada de `schema`; esgotadas as tentativas,
     propaga o último erro.
     """
+    model_name = get_model_name(node)
     llm = chat(node).bind(response_format={"type": "json_object"})
     schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False, indent=2)
     system_full = (
@@ -126,21 +128,57 @@ def structured_call(
     last_error: Exception | None = None
     cfg = _run_config(node, session_id)
 
-    for _ in range(max_retries + 1):
-        raw = str(llm.invoke(messages, config=cfg).content)
-        try:
-            return schema.model_validate(json.loads(raw))
-        except (json.JSONDecodeError, ValidationError) as e:
-            last_error = e
-            messages.append(AIMessage(content=raw))
-            messages.append(
-                HumanMessage(
-                    content=(
-                        f"O JSON acima falhou na validação: {e}. Responda novamente, "
-                        "APENAS com JSON válido que siga o schema."
+    # Métricas (Fase 7): tokens acumulam entre re-prompts; latência cobre a
+    # chamada inteira. Gravadas no `finally`, valendo para sucesso e falha.
+    tokens_in = tokens_out = 0
+    t0 = time.perf_counter()
+    try:
+        for _ in range(max_retries + 1):
+            msg = llm.invoke(messages, config=cfg)
+            usage = getattr(msg, "usage_metadata", None) or {}
+            tokens_in += usage.get("input_tokens", 0) or 0
+            tokens_out += usage.get("output_tokens", 0) or 0
+            raw = str(msg.content)
+            try:
+                return schema.model_validate(json.loads(raw))
+            except (json.JSONDecodeError, ValidationError) as e:
+                last_error = e
+                messages.append(AIMessage(content=raw))
+                messages.append(
+                    HumanMessage(
+                        content=(
+                            f"O JSON acima falhou na validação: {e}. Responda "
+                            "novamente, APENAS com JSON válido que siga o schema."
+                        )
                     )
                 )
-            )
 
-    assert last_error is not None
-    raise last_error
+        assert last_error is not None
+        raise last_error
+    finally:
+        _record_metric(node, session_id, model_name, tokens_in, tokens_out, t0)
+
+
+def _record_metric(
+    node: str,
+    session_id: str | None,
+    model_name: str,
+    tokens_in: int,
+    tokens_out: int,
+    t0: float,
+) -> None:
+    """Registra a métrica da chamada. Best-effort e isolado (import tardio para
+    não puxar o stack de DB em quem só usa o factory de modelos)."""
+    try:
+        from .metrics import record_llm_call
+
+        record_llm_call(
+            node=node,
+            session_id=session_id,
+            model=model_name,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            latency_ms=int((time.perf_counter() - t0) * 1000),
+        )
+    except Exception:  # noqa: BLE001 — observabilidade nunca derruba o pipeline.
+        pass

@@ -170,3 +170,40 @@ class FatiasOut(BaseModel):
 
 class StatusFatiaIn(BaseModel):
     status: str  # planejada | em_dev | entregue
+
+
+# ─── Observabilidade: métricas por estágio (Fase 7) ───────────────────────
+class EstagioMetricaOut(BaseModel):
+    stage: str  # E2..E6
+    chamadas: int
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float
+    latency_ms: int
+
+
+class TotalMetricaOut(BaseModel):
+    chamadas: int
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float
+    latency_ms: int
+
+
+class RunMetricasOut(BaseModel):
+    run_id: int
+    estagios: list[EstagioMetricaOut] = []
+    total: TotalMetricaOut
+
+
+class RunResumoMetricaOut(BaseModel):
+    run_id: int
+    chamadas: int
+    cost_usd: float
+    latency_ms: int
+
+
+class MetricasAgregadoOut(BaseModel):
+    estagios: list[EstagioMetricaOut] = []
+    runs: list[RunResumoMetricaOut] = []
+    total: TotalMetricaOut

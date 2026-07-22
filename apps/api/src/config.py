@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     max_tokens_per_run: int = 0
     max_usd_per_run: float = 0.0
 
+    # Observabilidade de custo (Fase 7). Preço por modelo em USD por 1M tokens,
+    # como JSON {"modelo": [entrada, saida]}. Vazio = usa os defaults de
+    # metrics.DEFAULT_PRICES. Ajuste conforme a tabela do provider.
+    llm_prices_json: str = ""
+
     # Diretório dos prompts dos agentes (instructions/*.md). Vazio = auto.
     instructions_dir: str = ""
 

@@ -3,10 +3,15 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+  schedule:
+    # Avaliação noturna (03:00 UTC). Só o job `eval` roda neste gatilho.
+    - cron: "0 3 * * *"
 
 jobs:
   api:
     name: API (ruff + pytest)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     services:
       db:
@@ -44,6 +49,7 @@ jobs:
 
   web:
     name: Web (eslint + vitest + build)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -65,8 +71,43 @@ jobs:
 
   docker:
     name: Build das imagens
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: docker compose build
         run: docker compose build
+
+  eval:
+    name: Avaliação offline (noturno)
+    # Só no cron noturno e no disparo manual — não em cada push.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      # Preenchidos por secrets quando disponíveis; sem eles, a avaliação
+      # (--full) se auto-pula e o job segue verde (dry-run informativo).
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+      LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+      LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+      LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Sync deps (com grupo eval)
+        run: uv sync --group eval
+      - name: Rodar avaliação (dataset + DeepEval quando há segredos)
+        run: uv run python ../../scripts/eval.py --full --push --out eval-report.json
+      - name: Publicar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: apps/api/eval-report.json
+          if-no-files-found: ignore

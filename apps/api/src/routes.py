@@ -32,6 +32,7 @@ from .graph.regras_pipeline import (
     resolver_contestacao_run,
     start_regras,
 )
+from .metrics import metrics_agregado, metrics_por_run
 from .models import GrillQA, GrillSession, Material, MaterialStatus, Project, Run
 from .schemas import (
     AnswersIn,
@@ -46,10 +47,12 @@ from .schemas import (
     GrillQAOut,
     HistoriasOut,
     MaterialOut,
+    MetricasAgregadoOut,
     ProjectIn,
     ProjectOut,
     RegrasOut,
     RespostasContestacaoIn,
+    RunMetricasOut,
     StatusFatiaIn,
 )
 from .services import process_material
@@ -337,3 +340,20 @@ def status_fatia(
     if sl is None:
         raise HTTPException(status_code=404, detail="fatia não encontrada")
     return FatiasOut(**get_fatias(run_id))
+
+
+# ─── Observabilidade: métricas por estágio (Fase 7) ───────────────────────
+@router.get("/runs/{run_id}/metrics", response_model=RunMetricasOut)
+def metricas_run(
+    run_id: int, session: Session = Depends(get_session)
+) -> RunMetricasOut:
+    """Custo e tempo por estágio de um run (quanto custou, onde foi o tempo)."""
+    return RunMetricasOut(**metrics_por_run(session, run_id))
+
+
+@router.get("/metrics", response_model=MetricasAgregadoOut)
+def metricas_agregado(
+    session: Session = Depends(get_session),
+) -> MetricasAgregadoOut:
+    """Visão agregada: totais por estágio e por run (todos os runs)."""
+    return MetricasAgregadoOut(**metrics_agregado(session))

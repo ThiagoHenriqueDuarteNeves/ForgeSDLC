@@ -15,6 +15,7 @@ import E5Panel from "./E5Panel";
 import FatiasPanel from "./FatiasPanel";
 import GrillPanel from "./GrillPanel";
 import HistoriasPanel from "./HistoriasPanel";
+import MetricsPanel from "./MetricsPanel";
 import RegrasPanel from "./RegrasPanel";
 
 const card = {
@@ -288,6 +289,7 @@ function ProjectPanel({
           <HistoriasPanel key={`h-${runId}`} runId={runId} onError={onError} />
           <E5Panel key={`e5-${runId}`} runId={runId} onError={onError} />
           <FatiasPanel key={`f-${runId}`} runId={runId} onError={onError} />
+          <MetricsPanel key={`m-${runId}`} runId={runId} onError={onError} />
         </>
       )}
     </>

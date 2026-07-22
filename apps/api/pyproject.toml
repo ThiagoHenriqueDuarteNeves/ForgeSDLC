@@ -27,6 +27,8 @@ dependencies = [
     # `langchain` (meta-pacote) é exigido pelo CallbackHandler do langfuse,
     # que faz `import langchain` só para checar a versão.
     "langchain>=1",
+    # Logging estruturado em JSON com contextvars (Fase 7 / observabilidade).
+    "structlog>=24.1",
 ]
 
 [dependency-groups]
@@ -34,6 +36,11 @@ dev = [
     "pytest>=8.2",
     "httpx>=0.27",
     "ruff>=0.6",
+]
+# Avaliação offline (Fase 7): pesado e só usado por scripts/eval.py e pelo job
+# noturno do CI. Fora do runtime da API. Instalar com `uv sync --group eval`.
+eval = [
+    "deepeval>=1.4",
 ]
 
 [tool.ruff]

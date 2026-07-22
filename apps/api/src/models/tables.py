@@ -16,6 +16,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -259,6 +260,28 @@ class Slice(Base):
     )
     package_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     package_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = _ts()
+
+
+# ─── Observabilidade: métricas por chamada de agente (PRD §6) ─────────────
+class LlmCall(Base):
+    """Uma linha por chamada de LLM (leaf de `structured_call`).
+
+    Granularidade de chamada; o estágio (E2..E6) é derivado do nó. A agregação
+    por estágio/run responde na UI "quanto custou este run e onde foi o tempo".
+    O número de chamadas a um nó é o proxy de iterações (ex.: refinador 2x).
+    """
+
+    __tablename__ = "llm_calls"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    node: Mapped[str] = mapped_column(String(32))  # grill/extrator/...
+    stage: Mapped[str] = mapped_column(String(8))  # E2..E6
+    model: Mapped[str] = mapped_column(String(64))
+    tokens_in: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_out: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = _ts()
 
 

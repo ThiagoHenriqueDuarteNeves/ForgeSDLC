@@ -12,6 +12,7 @@ from .tables import (  # noqa: F401
     Epic,
     GrillQA,
     GrillSession,
+    LlmCall,
     Material,
     MaterialStatus,
     Project,

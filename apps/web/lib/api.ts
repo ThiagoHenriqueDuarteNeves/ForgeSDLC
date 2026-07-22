@@ -317,3 +317,33 @@ export async function atualizarStatusFatia(
     }),
   );
 }
+
+// ─── Observabilidade: métricas por estágio (Fase 7) ────────────────────────
+export interface EstagioMetrica {
+  stage: string; // E2..E6
+  chamadas: number;
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+  latency_ms: number;
+}
+
+export interface TotalMetrica {
+  chamadas: number;
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+  latency_ms: number;
+}
+
+export interface RunMetricas {
+  run_id: number;
+  estagios: EstagioMetrica[];
+  total: TotalMetrica;
+}
+
+export async function getMetricas(runId: number): Promise<RunMetricas> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/metrics`, { cache: "no-store" }),
+  );
+}

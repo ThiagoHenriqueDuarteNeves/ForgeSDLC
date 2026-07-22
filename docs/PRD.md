@@ -285,5 +285,12 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   best-effort) injetando cenários da E5 + DoD fixo; UI de fatias com status.
   `/nova-fatia` pronto. Corrigido routing de modelos arquiteto/designer/
   fatiador. 57 testes verdes)_
-- [ ] Fase 7 — Observabilidade completa
+- [x] Fase 7 — Observabilidade completa _(structlog em JSON com run_id/estágio
+  via contextvars; métricas por chamada de LLM em `llm_calls` (tokens, custo
+  USD, latência) gravadas no choke point `structured_call`, agregadas por
+  estágio/run em GET /runs/{id}/metrics e GET /metrics + painel na web ("quanto
+  custou, onde foi o tempo"); dataset de 3 projetos-exemplo empurrável ao
+  Langfuse + `scripts/eval.py` com DeepEval (juiz sobre o provider) e job
+  noturno no CI (schedule + workflow_dispatch, grupo `eval` fora da imagem).
+  69 testes verdes)_
 - [ ] Fase 8 — Segurança + hardening
