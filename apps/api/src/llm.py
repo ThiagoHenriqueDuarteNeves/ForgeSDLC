@@ -32,6 +32,9 @@ _NODE_TO_MODEL = {
     "consolidador": settings.model_consolidador,
     "refinador": settings.model_refinador,
     "analista": settings.model_analista,
+    "arquiteto": settings.model_arquiteto,
+    "designer": settings.model_designer,
+    "fatiador": settings.model_fatiador,
 }
 
 

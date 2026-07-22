@@ -37,3 +37,18 @@ funda-a com a história de UI que a consome.
 ## Roteiro de demo
 <5 passos que qualquer pessoa segue para ver a fatia funcionando>
 ```
+
+# Formato (saída tipada)
+Retorne o objeto `MapaFatias`: `fatias`, cada uma com:
+- `nome`: nome curto da fatia;
+- `historia_ids`: ids (inteiros) das histórias aprovadas incluídas — use só
+  ids que existem na lista recebida; toda fatia tem ≥1;
+- `contrato_api`: endpoints, verbos e request/response de exemplo (camada API);
+- `modelo_dados`: tabelas/colunas novas ou alteradas e migrations (camada
+  persistência);
+- `ui`: telas/componentes, estados de carregamento e erro (camada UI);
+- `roteiro_demo`: 5 passos para ver a fatia funcionando.
+
+As três camadas (`contrato_api`, `modelo_dados`, `ui`) são OBRIGATÓRIAS e
+não-vazias em toda fatia — fatia de camada única é rejeitada. Os cenários de
+teste e o Definition of Done são anexados pelo sistema (não os escreva aqui).

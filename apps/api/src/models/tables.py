@@ -258,6 +258,7 @@ class Slice(Base):
         Enum(SliceStatus), default=SliceStatus.planejada
     )
     package_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    package_md: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = _ts()
 
 

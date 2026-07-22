@@ -15,6 +15,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from pathlib import Path
+
 from .models import (
     Adr,
     AuditLog,
@@ -22,6 +24,8 @@ from .models import (
     Epic,
     RuleStatus,
     ScenarioKind,
+    Slice,
+    SliceStatus,
     Story,
     StoryRule,
     TestScenario,
@@ -409,6 +413,107 @@ def persistir_e5(
                 run_id=run_id,
             )
     session.commit()
+
+
+def _cenarios_map(session: Session, run_id: int) -> dict[int, list[dict]]:
+    """{story_id: [{kind, gherkin}]} dos cenários do run (E5)."""
+    out: dict[int, list[dict]] = {}
+    for cen in session.scalars(
+        select(TestScenario)
+        .join(Story)
+        .join(Epic)
+        .where(Epic.run_id == run_id)
+        .order_by(TestScenario.id)
+    ):
+        out.setdefault(cen.story_id, []).append(
+            {"kind": cen.kind, "gherkin": cen.gherkin}
+        )
+    return out
+
+
+def persistir_fatias(
+    session: Session,
+    run_id: int,
+    fatias: list[dict],
+    historias: list[dict],
+    base_dir: str | None = None,
+) -> None:
+    """Grava as fatias (slices) + o pacote F-XXX.md (banco + arquivo).
+
+    Idempotente por run. O markdown fica em `slices.package_md` (fonte de
+    verdade); o arquivo em `docs/fatias/F-XXX.md` é best-effort (pode não
+    existir dentro do container, onde docs/ não é montado).
+    """
+    from .agents.fatiador import renderizar_pacote
+
+    if session.scalar(select(Slice.id).where(Slice.run_id == run_id).limit(1)):
+        return
+    actor = default_user(session)
+    historias_map = {h["id"]: h for h in historias}
+    cenarios_map = _cenarios_map(session, run_id)
+
+    for i, fatia in enumerate(fatias, start=1):
+        code = f"F-{i:03d}"
+        package_md = renderizar_pacote(code, fatia, historias_map, cenarios_map)
+        path = f"docs/fatias/{code}.md"
+        sl = Slice(
+            run_id=run_id,
+            code=code,
+            title=fatia.get("nome", code)[:512],
+            status=SliceStatus.planejada,
+            package_path=path,
+            package_md=package_md,
+        )
+        session.add(sl)
+        session.flush()
+        _audit(
+            session,
+            actor_id=actor.id,
+            action="propor",
+            entity="slice",
+            entity_id=sl.id,
+            before=None,
+            after={"code": code, "historias": fatia.get("historia_ids", [])},
+            run_id=run_id,
+        )
+        if base_dir:
+            try:
+                dest = Path(base_dir)
+                dest.mkdir(parents=True, exist_ok=True)
+                (dest / f"{code}.md").write_text(package_md, encoding="utf-8")
+            except OSError:
+                pass  # best-effort: o banco é a fonte de verdade
+    session.commit()
+
+
+def atualizar_status_fatia(
+    session: Session, run_id: int, code: str, novo_status: str
+) -> Slice | None:
+    """Muda o status de uma fatia (planejada/em_dev/entregue), auditado."""
+    sl = session.scalar(
+        select(Slice).where(Slice.run_id == run_id, Slice.code == code)
+    )
+    if sl is None:
+        return None
+    try:
+        status = SliceStatus(novo_status)
+    except ValueError as e:
+        raise ValueError(f"status inválido: {novo_status}") from e
+    actor = default_user(session)
+    antes = {"status": sl.status}
+    sl.status = status
+    _audit(
+        session,
+        actor_id=actor.id,
+        action="status",
+        entity="slice",
+        entity_id=sl.id,
+        before=antes,
+        after={"status": sl.status},
+        run_id=run_id,
+    )
+    session.commit()
+    return sl
 
 
 def aplicar_decisoes_historias(

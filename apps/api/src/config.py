@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     model_consolidador: str = "deepseek-v4-flash"
     model_refinador: str = "deepseek-v4-pro"
     model_analista: str = "deepseek-v4-pro"
+    model_arquiteto: str = "deepseek-v4-pro"
+    model_designer: str = "deepseek-v4-pro"
+    model_fatiador: str = "deepseek-v4-pro"
 
     # Tetos duros por run (Fase 8). 0 = sem limite (só para dev).
     max_tokens_per_run: int = 0

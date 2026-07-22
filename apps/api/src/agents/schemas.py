@@ -168,3 +168,25 @@ class CenariosDaHistoria(BaseModel):
     """Cenários de UMA história (o designer roda por história). Mín. 3."""
 
     cenarios: list[Cenario] = Field(default_factory=list)
+
+
+# ─── E6: fatiador vertical ────────────────────────────────────────────────
+class Fatia(BaseModel):
+    """Uma fatia vertical: atravessa UI + API + persistência + testes."""
+
+    nome: str = Field(description="nome curto da fatia")
+    historia_ids: list[int] = Field(
+        default_factory=list, description="ids das histórias aprovadas incluídas (≥1)"
+    )
+    contrato_api: str = Field(description="endpoints/verbos/exemplos — camada API")
+    modelo_dados: str = Field(description="tabelas/colunas/migrations — persistência")
+    ui: str = Field(description="telas/componentes/estados — camada UI")
+    roteiro_demo: list[str] = Field(
+        default_factory=list, description="5 passos para demonstrar a fatia"
+    )
+
+
+class MapaFatias(BaseModel):
+    """Saída do fatiador (E6): fatias verticais que cobrem as histórias."""
+
+    fatias: list[Fatia] = Field(default_factory=list)
