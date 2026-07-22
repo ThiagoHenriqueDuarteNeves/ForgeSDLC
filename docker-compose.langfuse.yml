@@ -1,0 +1,21 @@
+# ─────────────────────────────────────────────────────────────
+# Observabilidade (Langfuse) — compose SEPARADO, ligado só na Fase 3.
+#
+# Decisão de projeto (entrevista Grill Me): manter o Langfuse fora do
+# docker-compose.yml principal para que a fundação (Fases 1–2) suba leve.
+# Só se liga quando o primeiro agente é instrumentado (Fase 3).
+#
+# Uso (a partir da Fase 3):
+#   docker compose -f docker-compose.langfuse.yml up -d
+#
+# ⚠️ NÃO preenchido ainda de propósito. O stack self-host do Langfuse v3
+# tem múltiplos serviços (web, worker, postgres, clickhouse, redis, minio)
+# e a composição correta muda entre versões. Escrever de memória geraria um
+# arquivo desatualizado (ver skill checking-dependency-versions).
+#
+# Na Fase 3, buscar o docker-compose.yml oficial atual do Langfuse
+# (github.com/langfuse/langfuse) e adaptar aqui, fixando as tags de imagem
+# que a doc oficial recomendar naquele momento.
+# ─────────────────────────────────────────────────────────────
+
+services: {}
