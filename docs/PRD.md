@@ -255,7 +255,8 @@ cobre a qualidade não-determinística das saídas de agente.
 
 ## 9. Status
 _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
-- [ ] Fase 1 — Fundação
+- [x] Fase 1 — Fundação _(CI escrito e validado localmente; "verde no
+  primeiro push" pende de um remote GitHub configurado)_
 - [ ] Fase 2 — Ingestão
 - [ ] Fase 3 — Grill Me
 - [ ] Fase 4 — Regras + Histórias
