@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from .db import get_session
 from .graph.e5_pipeline import get_e5, start_e5
+from .graph.fatias_pipeline import get_fatias, start_fatias
 from .graph.historias_pipeline import (
     aprovar_historias,
     get_historias,
@@ -39,6 +40,7 @@ from .schemas import (
     DecisoesIn,
     DossieOut,
     E5Out,
+    FatiasOut,
     GrillHistoricoOut,
     GrillOut,
     GrillQAOut,
@@ -48,8 +50,10 @@ from .schemas import (
     ProjectOut,
     RegrasOut,
     RespostasContestacaoIn,
+    StatusFatiaIn,
 )
 from .services import process_material
+from .services_regras import atualizar_status_fatia
 from .tools.rag_busca import rag_busca
 
 router = APIRouter()
@@ -301,3 +305,35 @@ def rodar_e5(run_id: int) -> E5Out:
 @router.get("/runs/{run_id}/e5", response_model=E5Out)
 def obter_e5(run_id: int) -> E5Out:
     return E5Out(**get_e5(run_id))
+
+
+# ─── E6: fatiador vertical ────────────────────────────────────────────────
+@router.post("/runs/{run_id}/fatias", response_model=FatiasOut, status_code=201)
+def rodar_fatias(run_id: int) -> FatiasOut:
+    """Agrupa histórias aprovadas em fatias verticais; exige histórias aprovadas."""
+    try:
+        return FatiasOut(**start_fatias(run_id))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.get("/runs/{run_id}/fatias", response_model=FatiasOut)
+def obter_fatias(run_id: int) -> FatiasOut:
+    return FatiasOut(**get_fatias(run_id))
+
+
+@router.patch("/runs/{run_id}/fatias/{code}", response_model=FatiasOut)
+def status_fatia(
+    run_id: int,
+    code: str,
+    body: StatusFatiaIn,
+    session: Session = Depends(get_session),
+) -> FatiasOut:
+    """Muda o status de uma fatia (planejada/em_dev/entregue)."""
+    try:
+        sl = atualizar_status_fatia(session, run_id, code, body.status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if sl is None:
+        raise HTTPException(status_code=404, detail="fatia não encontrada")
+    return FatiasOut(**get_fatias(run_id))

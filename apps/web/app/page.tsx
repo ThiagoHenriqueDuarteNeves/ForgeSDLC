@@ -12,6 +12,7 @@ import {
   uploadText,
 } from "@/lib/api";
 import E5Panel from "./E5Panel";
+import FatiasPanel from "./FatiasPanel";
 import GrillPanel from "./GrillPanel";
 import HistoriasPanel from "./HistoriasPanel";
 import RegrasPanel from "./RegrasPanel";
@@ -265,6 +266,7 @@ function ProjectPanel({
           <RegrasPanel runId={runId} onError={onError} />
           <HistoriasPanel runId={runId} onError={onError} />
           <E5Panel runId={runId} onError={onError} />
+          <FatiasPanel runId={runId} onError={onError} />
         </>
       )}
     </>

@@ -279,6 +279,11 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   fan-in → persistir. ≥3 cenários/história (feliz/alternativo/erro);
   cenário órfão impossível (FK NOT NULL). UI: ADR + cenários por história.
   36 testes verdes)_
-- [ ] Fase 6 — Fatiador + /nova-fatia
+- [x] Fase 6 — Fatiador + /nova-fatia _(E6: grafo fatiar→valida/refatia→
+  persistir; regra invariável (nunca fatia de camada única) por validador;
+  pacote docs/fatias/F-XXX.md gerado (banco = fonte de verdade, arquivo
+  best-effort) injetando cenários da E5 + DoD fixo; UI de fatias com status.
+  `/nova-fatia` pronto. Corrigido routing de modelos arquiteto/designer/
+  fatiador. 57 testes verdes)_
 - [ ] Fase 7 — Observabilidade completa
 - [ ] Fase 8 — Segurança + hardening

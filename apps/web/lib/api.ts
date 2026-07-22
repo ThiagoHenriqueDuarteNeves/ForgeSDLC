@@ -276,3 +276,44 @@ export async function getE5(runId: number): Promise<E5State> {
     await fetch(`${API_URL}/runs/${runId}/e5`, { cache: "no-store" }),
   );
 }
+
+// ─── E6: fatias verticais ──────────────────────────────────────────────────
+export interface Fatia {
+  code: string;
+  title: string;
+  status: string; // planejada | em_dev | entregue
+  package_path: string | null;
+  package_md: string | null;
+}
+
+export interface FatiasState {
+  run_id: number;
+  status: string;
+  fatias: Fatia[];
+}
+
+export async function rodarFatias(runId: number): Promise<FatiasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/fatias`, { method: "POST" }),
+  );
+}
+
+export async function getFatias(runId: number): Promise<FatiasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/fatias`, { cache: "no-store" }),
+  );
+}
+
+export async function atualizarStatusFatia(
+  runId: number,
+  code: string,
+  status: string,
+): Promise<FatiasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/fatias/${code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }),
+  );
+}

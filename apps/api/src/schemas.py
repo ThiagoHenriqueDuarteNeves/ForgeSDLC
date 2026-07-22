@@ -151,3 +151,22 @@ class E5Out(BaseModel):
     status: str  # pendente | concluido
     adr: AdrOut | None = None
     historias: list[HistoriaCenariosOut] = []
+
+
+# ─── E6: fatias verticais ─────────────────────────────────────────────────
+class FatiaOut(BaseModel):
+    code: str
+    title: str
+    status: str  # planejada | em_dev | entregue
+    package_path: str | None = None
+    package_md: str | None = None
+
+
+class FatiasOut(BaseModel):
+    run_id: int
+    status: str  # pendente | concluido
+    fatias: list[FatiaOut] = []
+
+
+class StatusFatiaIn(BaseModel):
+    status: str  # planejada | em_dev | entregue
