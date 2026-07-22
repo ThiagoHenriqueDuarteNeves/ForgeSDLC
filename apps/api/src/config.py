@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     max_tokens_per_run: int = 0
     max_usd_per_run: float = 0.0
 
+    # Diretório dos prompts dos agentes (instructions/*.md). Vazio = auto.
+    instructions_dir: str = ""
+
     # Banco — usado a partir da Fase 1b.
     # Default aponta para localhost (execuções no host: alembic, testes).
     # Dentro do container, o docker-compose sobrescreve para host `db`.

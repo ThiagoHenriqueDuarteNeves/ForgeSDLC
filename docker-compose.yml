@@ -26,6 +26,10 @@ services:
       CORS_ORIGINS: http://localhost:3000
     ports:
       - "8000:8000"
+    volumes:
+      # Prompts dos agentes (instructions/*.md) montados; ficam na raiz do
+      # repo, fora do contexto de build da imagem.
+      - ./instructions:/app/instructions:ro
     depends_on:
       db:
         condition: service_healthy
