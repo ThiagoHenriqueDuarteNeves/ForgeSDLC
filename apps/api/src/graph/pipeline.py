@@ -28,6 +28,7 @@ from ..agents.grill import gerar_dossie, gerar_rodada
 from ..config import settings
 from ..db import SessionLocal
 from ..models import Run, RunStatus
+from ..services_grill import abrir_sessao, fechar_sessao_com_dossie, registrar_qa
 
 MAX_RODADAS = 6
 
@@ -64,6 +65,12 @@ def _perguntar(state: GrillState) -> dict:
     respostas = (payload or {}).get("respostas", {})
     encerrar = bool((payload or {}).get("encerrar", False))
     nova_rodada = {"perguntas": state["perguntas_pendentes"], "respostas": respostas}
+    # Persiste o Q&A desta rodada em domínio (grill_qa).
+    session = SessionLocal()
+    try:
+        registrar_qa(session, state["run_id"], state["perguntas_pendentes"], respostas)
+    finally:
+        session.close()
     return {
         "historico": [*state["historico"], nova_rodada],
         "num_rodadas": state["num_rodadas"] + 1,
@@ -75,6 +82,12 @@ def _dossie(state: GrillState) -> dict:
     md = gerar_dossie(
         state["project_id"], state["historico"], state["cobertura"], _session_id(state)
     )
+    # Persiste o dossiê em domínio (runs.dossie) e fecha a sessão do grill.
+    session = SessionLocal()
+    try:
+        fechar_sessao_com_dossie(session, state["run_id"], md)
+    finally:
+        session.close()
     return {"dossie": md}
 
 
@@ -152,6 +165,8 @@ def start_grill(project_id: int) -> dict:
         session.add(run)
         session.commit()
         run_id = run.id
+        abrir_sessao(session, run_id)
+        session.commit()
     finally:
         session.close()
 
@@ -181,11 +196,19 @@ def answer_grill(run_id: int, respostas: dict, encerrar: bool = False) -> dict:
 
 
 def dossie_do_run(run_id: int) -> str | None:
-    """Recupera o dossiê gerado pela entrevista (estado do grafo do Grill Me).
+    """Recupera o dossiê do run — de `runs.dossie` (domínio), com fallback ao
+    estado do grafo para runs antigos (anteriores à persistência em domínio).
 
-    É a entrada do subgrafo E3 (regras) — que reusa o mesmo run_id para que o
-    trace do Langfuse agrupe E2→E3→E4 na mesma sessão.
+    É a entrada dos estágios E3/E4/E5, que reusam o mesmo run_id para que o
+    trace do Langfuse agrupe E2→E5 na mesma sessão.
     """
+    session = SessionLocal()
+    try:
+        run = session.get(Run, run_id)
+        if run is not None and run.dossie:
+            return run.dossie
+    finally:
+        session.close()
     config = {"configurable": {"thread_id": str(run_id)}}
     snap = _graph().get_state(config)
     return (snap.values or {}).get("dossie")

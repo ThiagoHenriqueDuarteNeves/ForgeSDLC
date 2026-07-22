@@ -49,6 +49,23 @@ class GrillOut(BaseModel):
     dossie: str | None = None
 
 
+class DossieOut(BaseModel):
+    run_id: int
+    dossie: str | None = None
+
+
+class GrillQAOut(BaseModel):
+    question: str
+    answer: str | None = None
+    item_checklist: str | None = None
+
+
+class GrillHistoricoOut(BaseModel):
+    run_id: int
+    status: str | None = None
+    qa: list[GrillQAOut] = []
+
+
 # ─── E3: regras de negócio ────────────────────────────────────────────────
 class DecisoesIn(BaseModel):
     """code→ação (RN) ou id→ação (história). aprovar|rejeitar|contestar."""

@@ -123,6 +123,8 @@ class Run(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     stage: Mapped[str] = mapped_column(String(32))  # E1..E7
     graph_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Dossiê do Sistema (E2) persistido em domínio, não só no checkpointer.
+    dossie: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[RunStatus] = mapped_column(
         Enum(RunStatus), default=RunStatus.em_andamento
     )

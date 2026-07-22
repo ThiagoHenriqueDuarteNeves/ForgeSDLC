@@ -264,7 +264,9 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   fastembed/ONNX por ADR-001; validado end-to-end)_
 - [x] Fase 3 — Grill Me _(subgrafo HITL com interrupt + PostgresSaver: resume
   após matar o container validado; UI de entrevista + dossiê; Langfuse ligado
-  via CallbackHandler, session=run_id, no-op sem chaves)_
+  via CallbackHandler, session=run_id, no-op sem chaves. Dossiê e Q&A agora
+  persistidos em domínio: `runs.dossie`, `grill_sessions`, `grill_qa` —
+  não mais só no checkpointer; endpoints GET /runs/{id}/dossie e /grill)_
 - [x] Fase 4 — Regras + Histórias _(E3: subgrafo extrator×3 paralelo →
   consolidador → crítico⇄refinador (máx. 3) → interrupt de aprovação; RN
   imutável por trigger no banco. E3.1: contestar → rodada dirigida do Grill

@@ -31,14 +31,17 @@ from .graph.regras_pipeline import (
     resolver_contestacao_run,
     start_regras,
 )
-from .models import Material, MaterialStatus, Project
+from .models import GrillQA, GrillSession, Material, MaterialStatus, Project, Run
 from .schemas import (
     AnswersIn,
     BuscaResultOut,
     ContestacaoOut,
     DecisoesIn,
+    DossieOut,
     E5Out,
+    GrillHistoricoOut,
     GrillOut,
+    GrillQAOut,
     HistoriasOut,
     MaterialOut,
     ProjectIn,
@@ -187,6 +190,38 @@ def obter_run(run_id: int) -> GrillOut:
 def responder_run(run_id: int, body: AnswersIn) -> GrillOut:
     """Envia as respostas da rodada e retoma o grafo."""
     return GrillOut(**answer_grill(run_id, body.respostas, body.encerrar))
+
+
+@router.get("/runs/{run_id}/dossie", response_model=DossieOut)
+def obter_dossie(run_id: int, session: Session = Depends(get_session)) -> DossieOut:
+    """Dossiê persistido em domínio (runs.dossie)."""
+    run = session.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="run não encontrado")
+    return DossieOut(run_id=run_id, dossie=run.dossie)
+
+
+@router.get("/runs/{run_id}/grill", response_model=GrillHistoricoOut)
+def obter_historico_grill(
+    run_id: int, session: Session = Depends(get_session)
+) -> GrillHistoricoOut:
+    """Histórico da entrevista (grill_sessions + grill_qa)."""
+    gs = session.scalar(select(GrillSession).where(GrillSession.run_id == run_id))
+    if gs is None:
+        return GrillHistoricoOut(run_id=run_id, status=None, qa=[])
+    qa = session.scalars(
+        select(GrillQA).where(GrillQA.grill_session_id == gs.id).order_by(GrillQA.id)
+    )
+    return GrillHistoricoOut(
+        run_id=run_id,
+        status=gs.status,
+        qa=[
+            GrillQAOut(
+                question=q.question, answer=q.answer, item_checklist=q.item_checklist
+            )
+            for q in qa
+        ],
+    )
 
 
 # ─── E3: regras de negócio ────────────────────────────────────────────────
