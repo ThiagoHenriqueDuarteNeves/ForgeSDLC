@@ -42,6 +42,7 @@ from .models import (
     Material,
     MaterialStatus,
     Project,
+    ProjectNote,
     Run,
     RunStatus,
 )
@@ -59,6 +60,8 @@ from .schemas import (
     HistoriasOut,
     MaterialOut,
     MetricasAgregadoOut,
+    NotaIn,
+    NotaOut,
     ProjectIn,
     ProjectOut,
     RegrasOut,
@@ -181,6 +184,39 @@ def list_materials(
             .where(Material.project_id == project_id)
             .order_by(Material.id)
         ).scalars()
+    )
+
+
+# ─── Anotações do projeto (fatia-exemplo F-EX01 / E7) ─────────────────────
+@router.post(
+    "/projects/{project_id}/notes", response_model=NotaOut, status_code=201
+)
+def criar_nota(
+    project_id: int, body: NotaIn, session: Session = Depends(get_session)
+) -> ProjectNote:
+    """Cria uma anotação livre no projeto (não vazia)."""
+    _require_project(session, project_id)
+    if not body.text.strip():
+        raise HTTPException(status_code=422, detail="a anotação não pode ser vazia")
+    nota = ProjectNote(project_id=project_id, text=body.text.strip())
+    session.add(nota)
+    session.commit()
+    session.refresh(nota)
+    return nota
+
+
+@router.get("/projects/{project_id}/notes", response_model=list[NotaOut])
+def listar_notas(
+    project_id: int, session: Session = Depends(get_session)
+) -> list[ProjectNote]:
+    """Lista as anotações do projeto, mais recentes primeiro."""
+    _require_project(session, project_id)
+    return list(
+        session.scalars(
+            select(ProjectNote)
+            .where(ProjectNote.project_id == project_id)
+            .order_by(ProjectNote.id.desc())
+        )
     )
 
 

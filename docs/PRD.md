@@ -285,6 +285,12 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   best-effort) injetando cenários da E5 + DoD fixo; UI de fatias com status.
   `/nova-fatia` pronto. Corrigido routing de modelos arquiteto/designer/
   fatiador. 57 testes verdes)_
+- [x] E7 — Fatia-exemplo entregue via `/nova-fatia` _(pacote
+  docs/fatias/F-EX01-anotacoes-do-projeto.md implementado ponta a ponta:
+  migration project_notes → API POST/GET /projects/{id}/notes (teste de
+  integração pytest) → UI NotesPanel consumindo a API real (teste vitest) →
+  lint + build verdes. Prova que o pacote de fatia basta para implementar sem
+  abrir outros documentos e que a fatia passa no CI)_
 - [x] Fase 7 — Observabilidade completa _(structlog em JSON com run_id/estágio
   via contextvars; métricas por chamada de LLM em `llm_calls` (tokens, custo
   USD, latência) gravadas no choke point `structured_call`, agregadas por

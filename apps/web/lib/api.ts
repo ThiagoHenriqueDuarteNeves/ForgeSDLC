@@ -72,6 +72,29 @@ export async function uploadText(
   );
 }
 
+// ─── Anotações do projeto (fatia-exemplo F-EX01 / E7) ──────────────────────
+export interface Nota {
+  id: number;
+  text: string;
+  created_at: string;
+}
+
+export async function listarNotas(projectId: number): Promise<Nota[]> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/projects/${projectId}/notes`, { cache: "no-store" }),
+  );
+}
+
+export async function criarNota(projectId: number, text: string): Promise<Nota> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/projects/${projectId}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }),
+  );
+}
+
 // ─── Grill Me (E2) ─────────────────────────────────────────────────────────
 export interface Pergunta {
   id: string;

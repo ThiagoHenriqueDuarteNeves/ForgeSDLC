@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProjectIn(BaseModel):
@@ -34,6 +34,19 @@ class BuscaResultOut(BaseModel):
     filename: str
     page: int | None
     distance: float
+
+
+# ─── Anotações do projeto (fatia-exemplo F-EX01 / E7) ─────────────────────
+class NotaIn(BaseModel):
+    text: str = Field(min_length=1)
+
+
+class NotaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    text: str
+    created_at: datetime
 
 
 class AnswersIn(BaseModel):

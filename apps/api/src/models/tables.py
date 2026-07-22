@@ -117,6 +117,16 @@ class Chunk(Base):
     material: Mapped[Material] = relationship(back_populates="chunks")
 
 
+class ProjectNote(Base):
+    """Anotação livre de um projeto (fatia-exemplo F-EX01 / E7)."""
+
+    __tablename__ = "project_notes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _ts()
+
+
 # ─── Execução do pipeline ─────────────────────────────────────────────────
 class Run(Base):
     __tablename__ = "runs"

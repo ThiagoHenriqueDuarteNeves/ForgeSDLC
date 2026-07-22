@@ -16,6 +16,7 @@ import FatiasPanel from "./FatiasPanel";
 import GrillPanel from "./GrillPanel";
 import HistoriasPanel from "./HistoriasPanel";
 import MetricsPanel from "./MetricsPanel";
+import NotesPanel from "./NotesPanel";
 import RegrasPanel from "./RegrasPanel";
 
 const card = {
@@ -262,6 +263,8 @@ function ProjectPanel({
         </tbody>
       </table>
       </section>
+
+      <NotesPanel projectId={project.id} onError={onError} />
 
       <section style={{ ...card, marginTop: "1.5rem", display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ opacity: 0.7, fontSize: "0.9rem" }}>Abrir run existente nº</span>

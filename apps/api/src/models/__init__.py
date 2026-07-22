@@ -16,6 +16,7 @@ from .tables import (  # noqa: F401
     Material,
     MaterialStatus,
     Project,
+    ProjectNote,
     RuleStatus,
     Run,
     RunStatus,
