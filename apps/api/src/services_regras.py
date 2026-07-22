@@ -11,11 +11,10 @@ Regras do CLAUDE.md aplicadas aqui:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from pathlib import Path
 
 from .models import (
     Adr,
