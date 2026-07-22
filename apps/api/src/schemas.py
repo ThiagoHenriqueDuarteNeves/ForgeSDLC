@@ -54,6 +54,20 @@ class DecisoesIn(BaseModel):
     """code→ação (RN) ou id→ação (história). aprovar|rejeitar|contestar."""
 
     decisoes: dict[str, str]
+    motivos: dict[str, str] = {}  # code→motivo, usado ao contestar
+
+
+class ContestacaoOut(BaseModel):
+    """Rodada dirigida do Grill Me sobre uma RN contestada."""
+
+    code: str
+    texto: str
+    motivo: str
+    perguntas: list[dict] = []
+
+
+class RespostasContestacaoIn(BaseModel):
+    respostas: dict[str, str]
 
 
 class RegraOut(BaseModel):
@@ -62,6 +76,8 @@ class RegraOut(BaseModel):
     text: str
     fonte: str
     status: str
+    motivo: str | None = None
+    supersedes: str | None = None  # código da RN que esta supera
 
 
 class RegrasOut(BaseModel):

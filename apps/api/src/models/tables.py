@@ -171,6 +171,8 @@ class BusinessRule(Base):
     supersedes_id: Mapped[int | None] = mapped_column(
         ForeignKey("business_rules.id"), nullable=True
     )
+    # Motivo da contestação (RN errada) ou justificativa de um supersede.
+    motivo: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )

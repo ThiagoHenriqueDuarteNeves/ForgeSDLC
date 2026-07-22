@@ -23,11 +23,18 @@ from .graph.historias_pipeline import (
     start_historias,
 )
 from .graph.pipeline import answer_grill, get_grill, start_grill
-from .graph.regras_pipeline import aprovar_regras, get_regras, start_regras
+from .graph.regras_pipeline import (
+    aprovar_regras,
+    contestacao_perguntas,
+    get_regras,
+    resolver_contestacao_run,
+    start_regras,
+)
 from .models import Material, MaterialStatus, Project
 from .schemas import (
     AnswersIn,
     BuscaResultOut,
+    ContestacaoOut,
     DecisoesIn,
     GrillOut,
     HistoriasOut,
@@ -35,6 +42,7 @@ from .schemas import (
     ProjectIn,
     ProjectOut,
     RegrasOut,
+    RespostasContestacaoIn,
 )
 from .services import process_material
 from .tools.rag_busca import rag_busca
@@ -197,7 +205,29 @@ def obter_regras_run(run_id: int) -> RegrasOut:
 @router.post("/runs/{run_id}/regras/decisoes", response_model=RegrasOut)
 def decidir_regras_run(run_id: int, body: DecisoesIn) -> RegrasOut:
     """Aplica aprovar/rejeitar/contestar por RN e retoma o grafo."""
-    return RegrasOut(**aprovar_regras(run_id, body.decisoes))
+    return RegrasOut(**aprovar_regras(run_id, body.decisoes, body.motivos))
+
+
+@router.get(
+    "/runs/{run_id}/regras/{code}/contestacao", response_model=ContestacaoOut
+)
+def perguntas_contestacao_run(run_id: int, code: str) -> ContestacaoOut:
+    """Abre a rodada dirigida do Grill Me sobre a lacuna de uma RN contestada."""
+    try:
+        return ContestacaoOut(**contestacao_perguntas(run_id, code))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.post("/runs/{run_id}/regras/{code}/contestacao", response_model=RegrasOut)
+def resolver_contestacao_endpoint(
+    run_id: int, code: str, body: RespostasContestacaoIn
+) -> RegrasOut:
+    """Resolve a contestação: cria RN nova (supersede) e supera a original."""
+    try:
+        return RegrasOut(**resolver_contestacao_run(run_id, code, body.respostas))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
 
 
 # ─── E4: épicos e histórias ───────────────────────────────────────────────

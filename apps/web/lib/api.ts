@@ -121,6 +121,8 @@ export interface Regra {
   text: string;
   fonte: string;
   status: string; // proposta | aprovada | rejeitada | contestada | superseded
+  motivo: string | null;
+  supersedes: string | null; // código da RN que esta supera
 }
 
 export interface RegrasState {
@@ -144,12 +146,46 @@ export async function getRegras(runId: number): Promise<RegrasState> {
 export async function decidirRegras(
   runId: number,
   decisoes: Record<string, string>,
+  motivos: Record<string, string> = {},
 ): Promise<RegrasState> {
   return jsonOrThrow(
     await fetch(`${API_URL}/runs/${runId}/regras/decisoes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decisoes }),
+      body: JSON.stringify({ decisoes, motivos }),
+    }),
+  );
+}
+
+// Contestação dirigida (E3.1)
+export interface Contestacao {
+  code: string;
+  texto: string;
+  motivo: string;
+  perguntas: { id: string; texto: string; motivo: string; item_checklist: string }[];
+}
+
+export async function getContestacao(
+  runId: number,
+  code: string,
+): Promise<Contestacao> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/regras/${code}/contestacao`, {
+      cache: "no-store",
+    }),
+  );
+}
+
+export async function resolverContestacao(
+  runId: number,
+  code: string,
+  respostas: Record<string, string>,
+): Promise<RegrasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/regras/${code}/contestacao`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respostas }),
     }),
   );
 }

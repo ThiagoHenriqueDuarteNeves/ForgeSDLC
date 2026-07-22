@@ -26,11 +26,22 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 from sqlalchemy import select
 
-from ..agents.regras import consolidar, criticar, extrair_regras, refinar
+from ..agents.regras import (
+    consolidar,
+    criticar,
+    extrair_regras,
+    perguntar_contestacao,
+    refinar,
+    resolver_contestacao,
+)
 from ..agents.schemas import ConjuntoRegras, ExtracaoRegras, RelatorioCritico
 from ..db import SessionLocal
-from ..models import BusinessRule, Run
-from ..services_regras import aplicar_decisoes_regras, persistir_regras
+from ..models import BusinessRule, RuleStatus, Run
+from ..services_regras import (
+    aplicar_decisoes_regras,
+    criar_correcao,
+    persistir_regras,
+)
 from .pipeline import _checkpointer, dossie_do_run
 
 MAX_ITER = 3
@@ -45,6 +56,7 @@ class RegrasState(TypedDict):
     relatorio: dict
     iteracao: int
     decisoes: dict
+    motivos: dict
 
 
 def _sid(state: RegrasState) -> str:
@@ -97,13 +109,18 @@ def _persistir(state: RegrasState) -> dict:
 
 def _aguardar(state: RegrasState) -> dict:
     payload = interrupt({"aguardando": "aprovacao_regras"})
-    return {"decisoes": (payload or {}).get("decisoes", {})}
+    return {
+        "decisoes": (payload or {}).get("decisoes", {}),
+        "motivos": (payload or {}).get("motivos", {}),
+    }
 
 
 def _aplicar(state: RegrasState) -> dict:
     session = SessionLocal()
     try:
-        aplicar_decisoes_regras(session, state["run_id"], state["decisoes"])
+        aplicar_decisoes_regras(
+            session, state["run_id"], state["decisoes"], state.get("motivos", {})
+        )
     finally:
         session.close()
     return {}
@@ -151,6 +168,7 @@ def _estado(run_id: int) -> dict:
                 .order_by(BusinessRule.code)
             )
         )
+        code_por_id = {r.id: r.code for r in rns}
         regras = [
             {
                 "code": r.code,
@@ -158,6 +176,8 @@ def _estado(run_id: int) -> dict:
                 "fonte": r.fonte,
                 "status": r.status,
                 "id": r.id,
+                "motivo": r.motivo,
+                "supersedes": code_por_id.get(r.supersedes_id) if r.supersedes_id else None,
             }
             for r in rns
         ]
@@ -195,16 +215,82 @@ def start_regras(run_id: int) -> dict:
         "relatorio": {},
         "iteracao": 0,
         "decisoes": {},
+        "motivos": {},
     }
     _graph().invoke(initial, _thread(run_id))
     return _estado(run_id)
 
 
-def aprovar_regras(run_id: int, decisoes: dict[str, str]) -> dict:
-    """Retoma o grafo com as decisões (aprovar/rejeitar/contestar) por RN."""
-    _graph().invoke(Command(resume={"decisoes": decisoes}), _thread(run_id))
+def aprovar_regras(
+    run_id: int, decisoes: dict[str, str], motivos: dict[str, str] | None = None
+) -> dict:
+    """Retoma o grafo com as decisões (aprovar/rejeitar/contestar) por RN.
+
+    `motivos` (code→texto) acompanha a contestação e é aplicado pelo nó
+    `aplicar` junto com as decisões (uma só gravação, um só audit).
+    """
+    _graph().invoke(
+        Command(resume={"decisoes": decisoes, "motivos": motivos or {}}),
+        _thread(run_id),
+    )
     return _estado(run_id)
 
 
 def get_regras(run_id: int) -> dict:
+    return _estado(run_id)
+
+
+# ─── Contestação dirigida + supersede (PRD §4/E3.1, pós-E3) ───────────────
+def _rn_contestada(session, run_id: int, code: str) -> BusinessRule:
+    rn = session.scalar(
+        select(BusinessRule).where(
+            BusinessRule.run_id == run_id, BusinessRule.code == code
+        )
+    )
+    if rn is None:
+        raise ValueError(f"RN {code} não encontrada")
+    if rn.status != RuleStatus.contestada:
+        raise ValueError(f"RN {code} não está contestada (está {rn.status})")
+    return rn
+
+
+def contestacao_perguntas(run_id: int, code: str) -> dict:
+    """Abre a rodada dirigida do Grill Me sobre a lacuna da RN contestada."""
+    session = SessionLocal()
+    try:
+        run = session.get(Run, run_id)
+        if run is None:
+            raise ValueError("run não encontrado")
+        rn = _rn_contestada(session, run_id, code)
+        project_id, texto, motivo = run.project_id, rn.text, rn.motivo or ""
+    finally:
+        session.close()
+    rodada = perguntar_contestacao(project_id, texto, motivo, str(run_id))
+    return {
+        "code": code,
+        "texto": texto,
+        "motivo": motivo,
+        "perguntas": [p.model_dump() for p in rodada.perguntas],
+    }
+
+
+def resolver_contestacao_run(
+    run_id: int, code: str, respostas: dict[str, str]
+) -> dict:
+    """Sintetiza a RN corrigida e aplica o supersede (append-only)."""
+    session = SessionLocal()
+    try:
+        run = session.get(Run, run_id)
+        if run is None:
+            raise ValueError("run não encontrado")
+        rn = _rn_contestada(session, run_id, code)
+        project_id, texto, motivo = run.project_id, rn.text, rn.motivo or ""
+    finally:
+        session.close()
+    nova = resolver_contestacao(project_id, texto, motivo, respostas, str(run_id))
+    session = SessionLocal()
+    try:
+        criar_correcao(session, run_id, code, nova.model_dump())
+    finally:
+        session.close()
     return _estado(run_id)

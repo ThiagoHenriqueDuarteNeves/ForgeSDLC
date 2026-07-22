@@ -18,7 +18,9 @@ from .grill import _corpus_context
 from .schemas import (
     ConjuntoRegras,
     ExtracaoRegras,
+    RegraExtraida,
     RelatorioCritico,
+    RodadaPerguntas,
 )
 
 
@@ -138,3 +140,39 @@ def refinar(
         "refinador", system, user, ConjuntoRegras, session_id=session_id
     )
     return _completar_codigos(conjunto)
+
+
+# ─── Contestação dirigida (PRD §4/E3.1) ───────────────────────────────────
+def perguntar_contestacao(
+    project_id: int, rn_texto: str, motivo: str, session_id: str | None = None
+) -> RodadaPerguntas:
+    """Rodada dirigida do Grill Me sobre a lacuna de uma RN contestada."""
+    system = load_instructions("contestacao")
+    user = (
+        f"{_dados(project_id, '(dossiê já consolidado)')}\n\n"
+        f"Regra CONTESTADA (errada): {rn_texto}\n"
+        f"Motivo da contestação: {motivo}\n\n"
+        "Momento 1 — faça até 3 perguntas fechadas focadas SÓ nessa lacuna."
+    )
+    return structured_call("grill", system, user, RodadaPerguntas, session_id=session_id)
+
+
+def resolver_contestacao(
+    project_id: int,
+    rn_texto: str,
+    motivo: str,
+    respostas: dict[str, str],
+    session_id: str | None = None,
+) -> RegraExtraida:
+    """Sintetiza a RN corrigida a partir das respostas do PO (supersede)."""
+    system = load_instructions("contestacao")
+    respostas_txt = "\n".join(f"{qid}: {resp}" for qid, resp in respostas.items())
+    user = (
+        f"{_dados(project_id, '(dossiê já consolidado)')}\n\n"
+        f"Regra CONTESTADA (errada): {rn_texto}\n"
+        f"Motivo da contestação: {motivo}\n\n"
+        f"Respostas do PO na rodada dirigida:\n{respostas_txt}\n\n"
+        "Momento 2 — produza UMA regra corrigida (RegraExtraida) que substitui "
+        "a errada, com fonte apontando para a resposta (contestação Q-XX)."
+    )
+    return structured_call("extrator", system, user, RegraExtraida, session_id=session_id)

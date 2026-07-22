@@ -94,13 +94,18 @@ def persistir_regras(session: Session, run_id: int, regras: list[dict]) -> None:
 
 
 def aplicar_decisoes_regras(
-    session: Session, run_id: int, decisoes: dict[str, str]
+    session: Session,
+    run_id: int,
+    decisoes: dict[str, str],
+    motivos: dict[str, str] | None = None,
 ) -> None:
     """Aplica aprovar/rejeitar/contestar por código de RN, com auditoria.
 
     NUNCA altera o texto de uma RN (imutabilidade). Só transiciona `status`.
     `decisoes`: code -> 'aprovar' | 'rejeitar' | 'contestar'.
+    `motivos`: code -> motivo (usado quando a ação é 'contestar').
     """
+    motivos = motivos or {}
     actor = default_user(session)
     now = datetime.now(UTC)
     novo = {
@@ -119,6 +124,8 @@ def aplicar_decisoes_regras(
         if acao == "aprovar":
             rn.approved_by = actor.id
             rn.approved_at = now
+        if acao == "contestar":
+            rn.motivo = motivos.get(rn.code)
         _audit(
             session,
             actor_id=actor.id,
@@ -126,10 +133,111 @@ def aplicar_decisoes_regras(
             entity="business_rule",
             entity_id=rn.id,
             before=antes,
-            after={"status": rn.status},
+            after={"status": rn.status, "motivo": rn.motivo},
             run_id=run_id,
         )
     session.commit()
+
+
+def _proximo_code(session: Session, run_id: int) -> str:
+    """Próximo RN-XXX livre no run (não reusa números — append-only)."""
+    maior = 0
+    for (code,) in session.execute(
+        select(BusinessRule.code).where(BusinessRule.run_id == run_id)
+    ):
+        num = code.split("-")[-1]
+        if num.isdigit():
+            maior = max(maior, int(num))
+    return f"RN-{maior + 1:03d}"
+
+
+def criar_correcao(
+    session: Session, run_id: int, code_original: str, nova: dict
+) -> BusinessRule:
+    """Resolve uma contestação de forma append-only (PRD §4/E3.1).
+
+    Cria uma RN NOVA que supera a contestada (`supersedes_id`), já aprovada
+    (o PO acabou de resolvê-la na rodada dirigida); a original vira
+    `superseded` (preservada, nunca apagada) e as histórias derivadas dela
+    são marcadas `stale`. Tudo auditado.
+    """
+    original = session.scalar(
+        select(BusinessRule).where(
+            BusinessRule.run_id == run_id, BusinessRule.code == code_original
+        )
+    )
+    if original is None:
+        raise ValueError(f"RN {code_original} não encontrada no run {run_id}")
+    if original.status != RuleStatus.contestada:
+        raise ValueError(
+            f"só se corrige RN contestada; {code_original} está {original.status}"
+        )
+    actor = default_user(session)
+    now = datetime.now(UTC)
+
+    nova_rn = BusinessRule(
+        run_id=run_id,
+        code=_proximo_code(session, run_id),
+        text=nova["texto"],
+        fonte=nova["fonte"],
+        status=RuleStatus.aprovada,
+        supersedes_id=original.id,
+        motivo=f"supersede {code_original}: {original.motivo or 'contestada'}",
+        approved_by=actor.id,
+        approved_at=now,
+    )
+    session.add(nova_rn)
+    session.flush()
+    _audit(
+        session,
+        actor_id=actor.id,
+        action="corrigir",
+        entity="business_rule",
+        entity_id=nova_rn.id,
+        before={"supersedes": code_original},
+        after={"code": nova_rn.code, "text": nova_rn.text, "status": nova_rn.status},
+        run_id=run_id,
+    )
+
+    antes = {"status": original.status}
+    original.status = RuleStatus.superseded
+    _audit(
+        session,
+        actor_id=actor.id,
+        action="superseded",
+        entity="business_rule",
+        entity_id=original.id,
+        before=antes,
+        after={"status": original.status, "por": nova_rn.code},
+        run_id=run_id,
+    )
+
+    # Histórias derivadas da RN superada ficam obsoletas (nunca reprocessa só).
+    story_ids = list(
+        session.scalars(
+            select(StoryRule.story_id).where(
+                StoryRule.business_rule_id == original.id
+            )
+        )
+    )
+    if story_ids:
+        for story in session.scalars(
+            select(Story).where(Story.id.in_(story_ids))
+        ):
+            if not story.stale:
+                story.stale = True
+                _audit(
+                    session,
+                    actor_id=actor.id,
+                    action="stale",
+                    entity="story",
+                    entity_id=story.id,
+                    before={"stale": False},
+                    after={"stale": True, "motivo": f"{code_original} superada"},
+                    run_id=run_id,
+                )
+    session.commit()
+    return nova_rn
 
 
 def regras_aprovadas(session: Session, run_id: int) -> list[dict]:

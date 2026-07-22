@@ -267,9 +267,11 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   via CallbackHandler, session=run_id, no-op sem chaves)_
 - [x] Fase 4 — Regras + Histórias _(E3: subgrafo extrator×3 paralelo →
   consolidador → crítico⇄refinador (máx. 3) → interrupt de aprovação; RN
-  imutável por trigger no banco. E4: analista com loop de matriz RN↔US
-  (sem órfãs). Boards de RN e histórias na UI. 26 testes verdes, incl.
-  imutabilidade e matriz de rastreio)_
+  imutável por trigger no banco. E3.1: contestar → rodada dirigida do Grill
+  Me → RN nova com `supersedes` (append-only), original `superseded` e
+  histórias derivadas `stale`. E4: analista com loop de matriz RN↔US
+  (sem órfãs). Boards de RN e histórias na UI. 31 testes verdes, incl.
+  imutabilidade, matriz de rastreio e supersede)_
 - [ ] Fase 5 — Arquiteto ∥ Testes
 - [ ] Fase 6 — Fatiador + /nova-fatia
 - [ ] Fase 7 — Observabilidade completa
