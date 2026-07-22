@@ -25,9 +25,11 @@ const btn = {
 export default function GrillPanel({
   projectId,
   onError,
+  onRun,
 }: {
   projectId: number;
   onError: (m: string) => void;
+  onRun?: (runId: number) => void;
 }) {
   const [state, setState] = useState<GrillState | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -39,6 +41,7 @@ export default function GrillPanel({
       const s = await fn();
       setState(s);
       setAnswers({});
+      onRun?.(s.run_id);
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
     } finally {

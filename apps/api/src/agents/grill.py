@@ -47,7 +47,9 @@ def _historico_texto(historico: list[dict]) -> str:
     return "\n".join(linhas)
 
 
-def gerar_rodada(project_id: int, historico: list[dict]) -> RodadaPerguntas:
+def gerar_rodada(
+    project_id: int, historico: list[dict], session_id: str | None = None
+) -> RodadaPerguntas:
     """Gera a próxima rodada de perguntas (ou sinaliza cobertura suficiente)."""
     system = load_instructions("grill_me")
     user = (
@@ -59,10 +61,15 @@ def gerar_rodada(project_id: int, historico: list[dict]) -> RodadaPerguntas:
         "(até 5 perguntas). Se os itens 1-4 já estão cobertos e os demais ao "
         "menos parciais, marque cobertura_suficiente=true e devolva perguntas vazio."
     )
-    return structured_call("grill", system, user, RodadaPerguntas)
+    return structured_call("grill", system, user, RodadaPerguntas, session_id=session_id)
 
 
-def gerar_dossie(project_id: int, historico: list[dict], cobertura: dict) -> str:
+def gerar_dossie(
+    project_id: int,
+    historico: list[dict],
+    cobertura: dict,
+    session_id: str | None = None,
+) -> str:
     """Gera o Dossiê do Sistema em Markdown a partir do corpus + entrevista."""
     system = load_instructions("grill_me")
     user = (
@@ -76,4 +83,6 @@ def gerar_dossie(project_id: int, historico: list[dict], cobertura: dict) -> str
         f"{_historico_texto(historico)}\n\n"
         f"Cobertura final avaliada: {cobertura}"
     )
-    return structured_call("grill", system, user, Dossie).markdown
+    return structured_call(
+        "grill", system, user, Dossie, session_id=session_id
+    ).markdown

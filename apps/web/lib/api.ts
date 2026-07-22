@@ -113,3 +113,91 @@ export async function answerRun(
     }),
   );
 }
+
+// ─── Regras de negócio (E3) ────────────────────────────────────────────────
+export interface Regra {
+  id: number;
+  code: string;
+  text: string;
+  fonte: string;
+  status: string; // proposta | aprovada | rejeitada | contestada | superseded
+}
+
+export interface RegrasState {
+  run_id: number;
+  status: string; // aguardando_aprovacao | concluido
+  regras: Regra[];
+}
+
+export async function extrairRegras(runId: number): Promise<RegrasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/regras`, { method: "POST" }),
+  );
+}
+
+export async function getRegras(runId: number): Promise<RegrasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/regras`, { cache: "no-store" }),
+  );
+}
+
+export async function decidirRegras(
+  runId: number,
+  decisoes: Record<string, string>,
+): Promise<RegrasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/regras/decisoes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decisoes }),
+    }),
+  );
+}
+
+// ─── Épicos e histórias (E4) ───────────────────────────────────────────────
+export interface Epico {
+  id: number;
+  title: string;
+  description: string | null;
+}
+
+export interface Historia {
+  id: number;
+  epic_id: number;
+  title: string;
+  gherkin: string | null;
+  status: string;
+  rn_codes: string[];
+}
+
+export interface HistoriasState {
+  run_id: number;
+  status: string;
+  epicos: Epico[];
+  historias: Historia[];
+}
+
+export async function gerarHistorias(runId: number): Promise<HistoriasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/historias`, { method: "POST" }),
+  );
+}
+
+export async function getHistorias(runId: number): Promise<HistoriasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/historias`, { cache: "no-store" }),
+  );
+}
+
+export async function decidirHistorias(
+  runId: number,
+  decisoes: Record<string, string>,
+): Promise<HistoriasState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/historias/decisoes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decisoes }),
+    }),
+  );
+}

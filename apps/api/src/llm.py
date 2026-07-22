@@ -14,6 +14,7 @@ estrito:
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import TypeVar
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -29,6 +30,8 @@ _NODE_TO_MODEL = {
     "extrator": settings.model_extrator,
     "critico": settings.model_critico,
     "consolidador": settings.model_consolidador,
+    "refinador": settings.model_refinador,
+    "analista": settings.model_analista,
 }
 
 
@@ -49,12 +52,52 @@ def chat(node: str, **kwargs) -> ChatOpenAI:
     )
 
 
+# ─── Observabilidade (Langfuse) ───────────────────────────────────────────
+@lru_cache(maxsize=1)
+def _langfuse_handler():
+    """CallbackHandler do Langfuse, ou None se as chaves não estão configuradas.
+
+    No-op quando LANGFUSE_* está vazio: o pipeline roda sem observabilidade.
+    Constrói o cliente global explicitamente — nossas envs vêm do pydantic
+    (arquivo .env), não do os.environ, então o auto-config do Langfuse não as
+    enxergaria. Import preguiçoso: langfuse só é tocado quando ligado.
+    """
+    if not (settings.langfuse_public_key and settings.langfuse_secret_key):
+        return None
+    from langfuse import Langfuse
+    from langfuse.langchain import CallbackHandler
+
+    Langfuse(
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        host=settings.langfuse_host,
+    )
+    return CallbackHandler()
+
+
+def _run_config(node: str, session_id: str | None) -> dict:
+    """Config do LangChain com o callback do Langfuse (vazio se desligado).
+
+    Agrupa todas as chamadas de um run sob o mesmo `session_id` (= run_id) e
+    marca o nó como tag/nome de trace. Vazio quando o Langfuse está desligado,
+    caso em que `invoke(config={})` é idêntico a não passar nada.
+    """
+    handler = _langfuse_handler()
+    if handler is None:
+        return {}
+    metadata: dict = {"langfuse_tags": [node], "langfuse_trace_name": f"grill:{node}"}
+    if session_id:
+        metadata["langfuse_session_id"] = session_id
+    return {"callbacks": [handler], "metadata": metadata}
+
+
 def structured_call(
     node: str,
     system: str,
     user: str,
     schema: type[T],
     max_retries: int = 2,
+    session_id: str | None = None,
 ) -> T:
     """Chamada tipada com as 3 camadas de blindagem (PRD §3.1).
 
@@ -78,9 +121,10 @@ def structured_call(
     )
     messages: list = [SystemMessage(content=system_full), HumanMessage(content=user)]
     last_error: Exception | None = None
+    cfg = _run_config(node, session_id)
 
     for _ in range(max_retries + 1):
-        raw = str(llm.invoke(messages).content)
+        raw = str(llm.invoke(messages, config=cfg).content)
         try:
             return schema.model_validate(json.loads(raw))
         except (json.JSONDecodeError, ValidationError) as e:

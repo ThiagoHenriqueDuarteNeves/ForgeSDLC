@@ -17,15 +17,24 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .db import get_session
+from .graph.historias_pipeline import (
+    aprovar_historias,
+    get_historias,
+    start_historias,
+)
 from .graph.pipeline import answer_grill, get_grill, start_grill
+from .graph.regras_pipeline import aprovar_regras, get_regras, start_regras
 from .models import Material, MaterialStatus, Project
 from .schemas import (
     AnswersIn,
     BuscaResultOut,
+    DecisoesIn,
     GrillOut,
+    HistoriasOut,
     MaterialOut,
     ProjectIn,
     ProjectOut,
+    RegrasOut,
 )
 from .services import process_material
 from .tools.rag_busca import rag_busca
@@ -168,3 +177,45 @@ def obter_run(run_id: int) -> GrillOut:
 def responder_run(run_id: int, body: AnswersIn) -> GrillOut:
     """Envia as respostas da rodada e retoma o grafo."""
     return GrillOut(**answer_grill(run_id, body.respostas, body.encerrar))
+
+
+# ─── E3: regras de negócio ────────────────────────────────────────────────
+@router.post("/runs/{run_id}/regras", response_model=RegrasOut, status_code=201)
+def extrair_regras_run(run_id: int) -> RegrasOut:
+    """Roda o subgrafo E3 (extração + refino) até o gate de aprovação."""
+    try:
+        return RegrasOut(**start_regras(run_id))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.get("/runs/{run_id}/regras", response_model=RegrasOut)
+def obter_regras_run(run_id: int) -> RegrasOut:
+    return RegrasOut(**get_regras(run_id))
+
+
+@router.post("/runs/{run_id}/regras/decisoes", response_model=RegrasOut)
+def decidir_regras_run(run_id: int, body: DecisoesIn) -> RegrasOut:
+    """Aplica aprovar/rejeitar/contestar por RN e retoma o grafo."""
+    return RegrasOut(**aprovar_regras(run_id, body.decisoes))
+
+
+# ─── E4: épicos e histórias ───────────────────────────────────────────────
+@router.post("/runs/{run_id}/historias", response_model=HistoriasOut, status_code=201)
+def gerar_historias_run(run_id: int) -> HistoriasOut:
+    """Roda a E4 (analista) até o gate de aprovação; exige RNs aprovadas."""
+    try:
+        return HistoriasOut(**start_historias(run_id))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.get("/runs/{run_id}/historias", response_model=HistoriasOut)
+def obter_historias_run(run_id: int) -> HistoriasOut:
+    return HistoriasOut(**get_historias(run_id))
+
+
+@router.post("/runs/{run_id}/historias/decisoes", response_model=HistoriasOut)
+def decidir_historias_run(run_id: int, body: DecisoesIn) -> HistoriasOut:
+    """Aplica aprovar/rejeitar por história e retoma o grafo."""
+    return HistoriasOut(**aprovar_historias(run_id, body.decisoes))

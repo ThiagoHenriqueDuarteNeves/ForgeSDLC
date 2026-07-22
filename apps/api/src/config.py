@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     model_extrator: str = "deepseek-v4-pro"
     model_critico: str = "deepseek-v4-pro"
     model_consolidador: str = "deepseek-v4-flash"
+    model_refinador: str = "deepseek-v4-pro"
+    model_analista: str = "deepseek-v4-pro"
 
     # Tetos duros por run (Fase 8). 0 = sem limite (só para dev).
     max_tokens_per_run: int = 0
@@ -42,6 +44,14 @@ class Settings(BaseSettings):
 
     # Diretório dos prompts dos agentes (instructions/*.md). Vazio = auto.
     instructions_dir: str = ""
+
+    # Observabilidade (Langfuse) — Fase 3. Vazio = tracing DESLIGADO (no-op):
+    # o pipeline roda sem Langfuse. Quando preenchido, toda chamada de agente
+    # é traçada (CLAUDE.md: código sem trace não entra). O host aponta para o
+    # compose separado (docker-compose.langfuse.yml expõe a UI em :3001).
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "http://localhost:3001"
 
     # Banco — usado a partir da Fase 1b.
     # Default aponta para localhost (execuções no host: alembic, testes).

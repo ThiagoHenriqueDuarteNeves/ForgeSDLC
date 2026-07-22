@@ -47,3 +47,47 @@ class GrillOut(BaseModel):
     cobertura: dict[str, str] = {}
     perguntas: list[dict] = []
     dossie: str | None = None
+
+
+# ─── E3: regras de negócio ────────────────────────────────────────────────
+class DecisoesIn(BaseModel):
+    """code→ação (RN) ou id→ação (história). aprovar|rejeitar|contestar."""
+
+    decisoes: dict[str, str]
+
+
+class RegraOut(BaseModel):
+    id: int
+    code: str
+    text: str
+    fonte: str
+    status: str
+
+
+class RegrasOut(BaseModel):
+    run_id: int
+    status: str  # aguardando_aprovacao | concluido
+    regras: list[RegraOut] = []
+
+
+# ─── E4: épicos e histórias ───────────────────────────────────────────────
+class EpicoOut(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+
+
+class HistoriaOut(BaseModel):
+    id: int
+    epic_id: int
+    title: str
+    gherkin: str | None = None
+    status: str
+    rn_codes: list[str] = []
+
+
+class HistoriasOut(BaseModel):
+    run_id: int
+    status: str
+    epicos: list[EpicoOut] = []
+    historias: list[HistoriaOut] = []

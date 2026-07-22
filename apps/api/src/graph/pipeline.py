@@ -34,6 +34,7 @@ MAX_RODADAS = 6
 
 class GrillState(TypedDict):
     project_id: int
+    run_id: int  # = thread_id; vira session_id no Langfuse (agrupa o run)
     historico: list[dict]
     cobertura: dict
     perguntas_pendentes: list[dict]
@@ -44,8 +45,13 @@ class GrillState(TypedDict):
 
 
 # ─── Nós ──────────────────────────────────────────────────────────────────
+def _session_id(state: GrillState) -> str | None:
+    rid = state.get("run_id")
+    return str(rid) if rid else None
+
+
 def _gerar(state: GrillState) -> dict:
-    r = gerar_rodada(state["project_id"], state["historico"])
+    r = gerar_rodada(state["project_id"], state["historico"], _session_id(state))
     return {
         "cobertura": r.cobertura,
         "perguntas_pendentes": [p.model_dump() for p in r.perguntas],
@@ -66,7 +72,9 @@ def _perguntar(state: GrillState) -> dict:
 
 
 def _dossie(state: GrillState) -> dict:
-    md = gerar_dossie(state["project_id"], state["historico"], state["cobertura"])
+    md = gerar_dossie(
+        state["project_id"], state["historico"], state["cobertura"], _session_id(state)
+    )
     return {"dossie": md}
 
 
@@ -149,6 +157,7 @@ def start_grill(project_id: int) -> dict:
 
     initial: GrillState = {
         "project_id": project_id,
+        "run_id": run_id,
         "historico": [],
         "cobertura": {},
         "perguntas_pendentes": [],
@@ -169,6 +178,17 @@ def answer_grill(run_id: int, respostas: dict, encerrar: bool = False) -> dict:
         Command(resume={"respostas": respostas, "encerrar": encerrar}), config
     )
     return _payload(run_id, result)
+
+
+def dossie_do_run(run_id: int) -> str | None:
+    """Recupera o dossiê gerado pela entrevista (estado do grafo do Grill Me).
+
+    É a entrada do subgrafo E3 (regras) — que reusa o mesmo run_id para que o
+    trace do Langfuse agrupe E2→E3→E4 na mesma sessão.
+    """
+    config = {"configurable": {"thread_id": str(run_id)}}
+    snap = _graph().get_state(config)
+    return (snap.values or {}).get("dossie")
 
 
 def get_grill(run_id: int) -> dict:

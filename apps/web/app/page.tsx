@@ -12,6 +12,8 @@ import {
   uploadText,
 } from "@/lib/api";
 import GrillPanel from "./GrillPanel";
+import HistoriasPanel from "./HistoriasPanel";
+import RegrasPanel from "./RegrasPanel";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -116,6 +118,7 @@ function ProjectPanel({
   const [materials, setMaterials] = useState<Material[]>([]);
   const [paste, setPaste] = useState("");
   const [drag, setDrag] = useState(false);
+  const [runId, setRunId] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -255,7 +258,13 @@ function ProjectPanel({
         </tbody>
       </table>
       </section>
-      <GrillPanel projectId={project.id} onError={onError} />
+      <GrillPanel projectId={project.id} onError={onError} onRun={setRunId} />
+      {runId !== null && (
+        <>
+          <RegrasPanel runId={runId} onError={onError} />
+          <HistoriasPanel runId={runId} onError={onError} />
+        </>
+      )}
     </>
   );
 }
