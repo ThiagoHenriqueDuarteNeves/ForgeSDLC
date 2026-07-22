@@ -71,3 +71,45 @@ export async function uploadText(
     }),
   );
 }
+
+// ─── Grill Me (E2) ─────────────────────────────────────────────────────────
+export interface Pergunta {
+  id: string;
+  texto: string;
+  motivo: string;
+  item_checklist: string;
+}
+
+export interface GrillState {
+  run_id: number;
+  status: string; // aguardando_respostas | concluido
+  cobertura: Record<string, string>;
+  perguntas: Pergunta[];
+  dossie: string | null;
+}
+
+export async function startRun(projectId: number): Promise<GrillState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/projects/${projectId}/runs`, { method: "POST" }),
+  );
+}
+
+export async function getRun(runId: number): Promise<GrillState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}`, { cache: "no-store" }),
+  );
+}
+
+export async function answerRun(
+  runId: number,
+  respostas: Record<string, string>,
+  encerrar: boolean,
+): Promise<GrillState> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/answers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respostas, encerrar }),
+    }),
+  );
+}

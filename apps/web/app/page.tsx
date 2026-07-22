@@ -11,6 +11,7 @@ import {
   uploadFile,
   uploadText,
 } from "@/lib/api";
+import GrillPanel from "./GrillPanel";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -163,7 +164,8 @@ function ProjectPanel({
   }
 
   return (
-    <section style={{ ...card }}>
+    <>
+      <section style={{ ...card }}>
       <h2 style={{ fontSize: "1rem", marginTop: 0 }}>
         Material de <span style={{ color: "#34d399" }}>{project.name}</span>
       </h2>
@@ -252,7 +254,9 @@ function ProjectPanel({
           )}
         </tbody>
       </table>
-    </section>
+      </section>
+      <GrillPanel projectId={project.id} onError={onError} />
+    </>
   );
 }
 
