@@ -256,7 +256,8 @@ cobre a qualidade não-determinística das saídas de agente.
 ## 9. Status
 _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
 - [x] Fase 1 — Fundação _(CI verde no primeiro push — os 3 jobs passaram)_
-- [ ] Fase 2 — Ingestão
+- [x] Fase 2 — Ingestão _(upload→parse→chunk→embed→pgvector + rag_busca;
+  fastembed/ONNX por ADR-001; validado end-to-end)_
 - [ ] Fase 3 — Grill Me
 - [ ] Fase 4 — Regras + Histórias
 - [ ] Fase 5 — Arquiteto ∥ Testes
