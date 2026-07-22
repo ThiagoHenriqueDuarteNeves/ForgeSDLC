@@ -16,12 +16,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import (
+    Adr,
     AuditLog,
     BusinessRule,
     Epic,
     RuleStatus,
+    ScenarioKind,
     Story,
     StoryRule,
+    TestScenario,
     User,
     UserRole,
 )
@@ -309,6 +312,102 @@ def persistir_historias(session: Session, run_id: int, mapa: dict) -> None:
             after={"title": story.title, "rns": h.get("rns_cobertas", [])},
             run_id=run_id,
         )
+    session.commit()
+
+
+def historias_aprovadas(session: Session, run_id: int) -> list[dict]:
+    """Histórias aprovadas do run + suas RNs (entrada do designer de testes)."""
+    out: list[dict] = []
+    for story in session.scalars(
+        select(Story)
+        .join(Epic)
+        .where(Epic.run_id == run_id, Story.status == "aprovada")
+        .order_by(Story.id)
+    ):
+        rn_codes = list(
+            session.scalars(
+                select(BusinessRule.code)
+                .join(StoryRule, StoryRule.business_rule_id == BusinessRule.id)
+                .where(StoryRule.story_id == story.id)
+                .order_by(BusinessRule.code)
+            )
+        )
+        out.append(
+            {
+                "id": story.id,
+                "title": story.title,
+                "gherkin": story.gherkin,
+                "rn_codes": rn_codes,
+            }
+        )
+    return out
+
+
+def persistir_e5(
+    session: Session,
+    run_id: int,
+    adr: dict,
+    cenarios_por_historia: list[dict],
+) -> None:
+    """Grava o ADR e os cenários de teste (por história), com auditoria.
+
+    Idempotente por run (não regrava se já há ADR). `cenarios_por_historia`:
+    lista de {story_id, cenarios: [{nome, categoria, nivel, gherkin, rns}]}.
+    """
+    if session.scalar(select(Adr.id).where(Adr.run_id == run_id).limit(1)):
+        return
+    actor = default_user(session)
+
+    opcoes_txt = "\n".join(
+        f"- {o.get('stack', '')}\n  prós: {o.get('pros', '')}\n"
+        f"  contras: {o.get('contras', '')}"
+        for o in adr.get("opcoes", [])
+    )
+    adr_row = Adr(
+        run_id=run_id,
+        title="Stack do sistema-alvo (ADR)",
+        context=adr.get("contexto", ""),
+        options=opcoes_txt,
+        decision=adr.get("decisao", ""),
+        consequences="\n".join(adr.get("consequencias", [])),
+    )
+    session.add(adr_row)
+    session.flush()
+    _audit(
+        session,
+        actor_id=actor.id,
+        action="propor",
+        entity="adr",
+        entity_id=adr_row.id,
+        before=None,
+        after={"title": adr_row.title},
+        run_id=run_id,
+    )
+
+    for grupo in cenarios_por_historia:
+        story_id = grupo["story_id"]
+        for c in grupo.get("cenarios", []):
+            try:
+                kind = ScenarioKind(c.get("categoria", "feliz"))
+            except ValueError:
+                kind = ScenarioKind.feliz
+            corpo = (
+                f"# {c.get('nome', '')} (nível: {c.get('nivel', '')}; "
+                f"RNs: {', '.join(c.get('rns', []))})\n{c.get('gherkin', '')}"
+            )
+            cen = TestScenario(story_id=story_id, kind=kind, gherkin=corpo)
+            session.add(cen)
+            session.flush()
+            _audit(
+                session,
+                actor_id=actor.id,
+                action="propor",
+                entity="test_scenario",
+                entity_id=cen.id,
+                before=None,
+                after={"story_id": story_id, "kind": kind, "nome": c.get("nome")},
+                run_id=run_id,
+            )
     session.commit()
 
 

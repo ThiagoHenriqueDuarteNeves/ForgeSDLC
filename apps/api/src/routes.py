@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .db import get_session
+from .graph.e5_pipeline import get_e5, start_e5
 from .graph.historias_pipeline import (
     aprovar_historias,
     get_historias,
@@ -36,6 +37,7 @@ from .schemas import (
     BuscaResultOut,
     ContestacaoOut,
     DecisoesIn,
+    E5Out,
     GrillOut,
     HistoriasOut,
     MaterialOut,
@@ -249,3 +251,18 @@ def obter_historias_run(run_id: int) -> HistoriasOut:
 def decidir_historias_run(run_id: int, body: DecisoesIn) -> HistoriasOut:
     """Aplica aprovar/rejeitar por história e retoma o grafo."""
     return HistoriasOut(**aprovar_historias(run_id, body.decisoes))
+
+
+# ─── E5: arquiteto de stack ∥ designer de testes ──────────────────────────
+@router.post("/runs/{run_id}/e5", response_model=E5Out, status_code=201)
+def rodar_e5(run_id: int) -> E5Out:
+    """Roda os ramos paralelos (ADR + cenários); exige histórias aprovadas."""
+    try:
+        return E5Out(**start_e5(run_id))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.get("/runs/{run_id}/e5", response_model=E5Out)
+def obter_e5(run_id: int) -> E5Out:
+    return E5Out(**get_e5(run_id))

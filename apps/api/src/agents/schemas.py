@@ -133,3 +133,38 @@ class MapaHistorias(BaseModel):
 
     epicos: list[Epico] = Field(default_factory=list)
     historias: list[Historia] = Field(default_factory=list)
+
+
+# ─── E5: arquiteto de stack (ADR) ─────────────────────────────────────────
+class OpcaoStack(BaseModel):
+    stack: str = Field(description="a stack considerada (front/back/banco/infra)")
+    pros: str
+    contras: str
+
+
+class AdrProposta(BaseModel):
+    """ADR do sistema-alvo — saída do arquiteto de stack."""
+
+    contexto: str = Field(description="o que nos NFRs/regras força a decisão")
+    opcoes: list[OpcaoStack] = Field(default_factory=list)
+    decisao: str = Field(description="a stack escolhida, item a item, e por quê")
+    consequencias: list[str] = Field(default_factory=list)
+
+
+# ─── E5: designer de testes (cenários BDD por história) ────────────────────
+CategoriaCenario = Literal["feliz", "alternativo", "erro"]
+NivelTeste = Literal["unit", "integracao", "e2e"]
+
+
+class Cenario(BaseModel):
+    nome: str
+    categoria: CategoriaCenario = Field(description="feliz | alternativo | erro")
+    nivel: NivelTeste = Field(description="onde o dev implementa: unit|integracao|e2e")
+    gherkin: str = Field(description="Dado/Quando/Então, testando UMA coisa")
+    rns: list[str] = Field(default_factory=list, description="RN-XXX de origem")
+
+
+class CenariosDaHistoria(BaseModel):
+    """Cenários de UMA história (o designer roda por história). Mín. 3."""
+
+    cenarios: list[Cenario] = Field(default_factory=list)

@@ -107,3 +107,30 @@ class HistoriasOut(BaseModel):
     status: str
     epicos: list[EpicoOut] = []
     historias: list[HistoriaOut] = []
+
+
+# ─── E5: ADR + cenários de teste ──────────────────────────────────────────
+class AdrOut(BaseModel):
+    title: str
+    context: str
+    options: str
+    decision: str
+    consequences: str
+
+
+class CenarioOut(BaseModel):
+    kind: str  # feliz | alternativo | erro
+    gherkin: str
+
+
+class HistoriaCenariosOut(BaseModel):
+    story_id: int
+    title: str
+    cenarios: list[CenarioOut] = []
+
+
+class E5Out(BaseModel):
+    run_id: int
+    status: str  # pendente | concluido
+    adr: AdrOut | None = None
+    historias: list[HistoriaCenariosOut] = []

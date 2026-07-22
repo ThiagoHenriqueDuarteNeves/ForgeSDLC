@@ -235,6 +235,7 @@ class Adr(Base):
 
 class TestScenario(Base):
     __tablename__ = "test_scenarios"
+    __test__ = False  # não é classe de teste (evita PytestCollectionWarning)
     id: Mapped[int] = mapped_column(primary_key=True)
     story_id: Mapped[int] = mapped_column(ForeignKey("stories.id"))
     kind: Mapped[ScenarioKind] = mapped_column(Enum(ScenarioKind))

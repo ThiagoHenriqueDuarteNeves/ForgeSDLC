@@ -272,7 +272,11 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   histórias derivadas `stale`. E4: analista com loop de matriz RN↔US
   (sem órfãs). Boards de RN e histórias na UI. 31 testes verdes, incl.
   imutabilidade, matriz de rastreio e supersede)_
-- [ ] Fase 5 — Arquiteto ∥ Testes
+- [x] Fase 5 — Arquiteto ∥ Testes _(E5: dois ramos PARALELOS no grafo
+  (arquiteto de stack → ADR ∥ designer de testes → cenários BDD por história),
+  fan-in → persistir. ≥3 cenários/história (feliz/alternativo/erro);
+  cenário órfão impossível (FK NOT NULL). UI: ADR + cenários por história.
+  36 testes verdes)_
 - [ ] Fase 6 — Fatiador + /nova-fatia
 - [ ] Fase 7 — Observabilidade completa
 - [ ] Fase 8 — Segurança + hardening

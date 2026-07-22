@@ -237,3 +237,42 @@ export async function decidirHistorias(
     }),
   );
 }
+
+// ─── E5: ADR (arquiteto) + cenários de teste (designer) ────────────────────
+export interface Adr {
+  title: string;
+  context: string;
+  options: string;
+  decision: string;
+  consequences: string;
+}
+
+export interface Cenario {
+  kind: string; // feliz | alternativo | erro
+  gherkin: string;
+}
+
+export interface HistoriaCenarios {
+  story_id: number;
+  title: string;
+  cenarios: Cenario[];
+}
+
+export interface E5State {
+  run_id: number;
+  status: string; // pendente | concluido
+  adr: Adr | null;
+  historias: HistoriaCenarios[];
+}
+
+export async function rodarE5(runId: number): Promise<E5State> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/e5`, { method: "POST" }),
+  );
+}
+
+export async function getE5(runId: number): Promise<E5State> {
+  return jsonOrThrow(
+    await fetch(`${API_URL}/runs/${runId}/e5`, { cache: "no-store" }),
+  );
+}

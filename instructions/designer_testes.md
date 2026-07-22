@@ -21,5 +21,11 @@ de teste ANTES de qualquer implementação existir.
   história (provavelmente falta RN de validação) — registre a suspeita.
 
 # Formato
-Saída tipada: Cenário {id, historia_id, rns[], tipo: unit|integracao|e2e,
-gherkin, dados_de_teste_sugeridos}.
+Você recebe UMA história por vez. Retorne o objeto `CenariosDaHistoria`:
+`cenarios` (≥3), cada um com:
+- `nome`: título curto do cenário;
+- `categoria`: `feliz` | `alternativo` | `erro` (o conjunto precisa ter ao
+  menos um de cada);
+- `nivel`: `unit` | `integracao` | `e2e` (onde o dev implementa);
+- `gherkin`: o cenário em Dado/Quando/Então, testando UMA coisa;
+- `rns`: códigos RN-XXX de origem do cenário.
