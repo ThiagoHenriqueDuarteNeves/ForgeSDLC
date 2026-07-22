@@ -17,8 +17,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .db import get_session
+from .graph.pipeline import answer_grill, get_grill, start_grill
 from .models import Material, MaterialStatus, Project
-from .schemas import BuscaResultOut, MaterialOut, ProjectIn, ProjectOut
+from .schemas import (
+    AnswersIn,
+    BuscaResultOut,
+    GrillOut,
+    MaterialOut,
+    ProjectIn,
+    ProjectOut,
+)
 from .services import process_material
 from .tools.rag_busca import rag_busca
 
@@ -140,3 +148,23 @@ def busca(
         )
         for r in resultados
     ]
+
+
+# ─── Grill Me (E2) ────────────────────────────────────────────────────────
+@router.post("/projects/{project_id}/runs", response_model=GrillOut, status_code=201)
+def criar_run(project_id: int, session: Session = Depends(get_session)) -> GrillOut:
+    """Inicia uma entrevista Grill Me e retorna a primeira rodada de perguntas."""
+    _require_project(session, project_id)
+    return GrillOut(**start_grill(project_id))
+
+
+@router.get("/runs/{run_id}", response_model=GrillOut)
+def obter_run(run_id: int) -> GrillOut:
+    """Estado atual do run: perguntas pendentes ou dossiê."""
+    return GrillOut(**get_grill(run_id))
+
+
+@router.post("/runs/{run_id}/answers", response_model=GrillOut)
+def responder_run(run_id: int, body: AnswersIn) -> GrillOut:
+    """Envia as respostas da rodada e retoma o grafo."""
+    return GrillOut(**answer_grill(run_id, body.respostas, body.encerrar))

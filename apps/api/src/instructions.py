@@ -17,8 +17,11 @@ def _candidate_dirs() -> list[Path]:
     if settings.instructions_dir:
         dirs.append(Path(settings.instructions_dir))
     # Raiz do repo ao rodar de apps/api/src (parents: src→api→apps→repo).
-    dirs.append(Path(__file__).resolve().parents[3] / "instructions")
-    # Dentro do container (Dockerfile copia para /app/instructions).
+    # No container o caminho é mais raso (/app/src) — daí o guard.
+    parents = Path(__file__).resolve().parents
+    if len(parents) > 3:
+        dirs.append(parents[3] / "instructions")
+    # Dentro do container (volume monta em /app/instructions).
     dirs.append(Path("/app/instructions"))
     dirs.append(Path.cwd() / "instructions")
     return dirs

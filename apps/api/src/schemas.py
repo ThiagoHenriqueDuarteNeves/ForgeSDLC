@@ -34,3 +34,16 @@ class BuscaResultOut(BaseModel):
     filename: str
     page: int | None
     distance: float
+
+
+class AnswersIn(BaseModel):
+    respostas: dict[str, str]
+    encerrar: bool = False
+
+
+class GrillOut(BaseModel):
+    run_id: int
+    status: str  # aguardando_respostas | concluido
+    cobertura: dict[str, str] = {}
+    perguntas: list[dict] = []
+    dossie: str | None = None
