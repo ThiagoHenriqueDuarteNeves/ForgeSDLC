@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from .config import settings
 from .db import engine
+from .routes import router
 
 app = FastAPI(title=settings.app_name, version=settings.app_version)
 
@@ -21,6 +22,8 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+app.include_router(router)
 
 
 class Health(BaseModel):

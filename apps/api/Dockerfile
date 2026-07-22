@@ -10,6 +10,10 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
+# Pré-baixa o modelo de embeddings (ONNX) para a imagem, evitando download
+# no primeiro upload em runtime.
+RUN uv run python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='sentence-transformers/all-MiniLM-L6-v2')"
+
 # Código da aplicação + migrations (para o container aplicar o schema sozinho).
 COPY src ./src
 COPY migrations ./migrations
