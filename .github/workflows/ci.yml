@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      api_url:
+        description: "URL da API de staging para o red team (garak). Vazio = só lista probes."
+        required: false
+        default: ""
   schedule:
     # Avaliação noturna (03:00 UTC). Só o job `eval` roda neste gatilho.
     - cron: "0 3 * * *"
@@ -110,4 +115,52 @@ jobs:
         with:
           name: eval-report
           path: apps/api/eval-report.json
+          if-no-files-found: ignore
+
+  redteam:
+    name: Red team (garak)
+    # Executável sob demanda. Com `api_url`, ataca a API de staging; sem ela,
+    # comprova que o garak roda (lista probes). Relatório sempre como artifact.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar garak
+        run: pip install garak
+      - name: Rodar garak (REST) ou listar probes
+        env:
+          API_URL: ${{ github.event.inputs.api_url }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          mkdir -p redteam
+          if [ -n "$API_URL" ]; then
+            cat > redteam/rest.json <<JSON
+          {
+            "rest": {
+              "RestGenerator": {
+                "uri": "${API_URL}",
+                "method": "post",
+                "headers": {"Content-Type": "application/json", "X-API-Token": "${API_TOKEN}"},
+                "req_template_json_object": {"text": "\$INPUT"},
+                "response_json": true,
+                "response_json_field": "detail"
+              }
+            }
+          }
+          JSON
+            garak --model_type rest -G redteam/rest.json --probes promptinject \
+              --report_prefix redteam/forge || true
+          else
+            echo "sem api_url: comprova que o garak é executável (lista probes)"
+            garak --list_probes > redteam/probes.txt || true
+          fi
+      - name: Publicar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: garak-report
+          path: redteam/
           if-no-files-found: ignore

@@ -293,4 +293,13 @@ _(atualizado pelo Claude Code ao fim de cada fase de docs/FASES.md)_
   Langfuse + `scripts/eval.py` com DeepEval (juiz sobre o provider) e job
   noturno no CI (schedule + workflow_dispatch, grupo `eval` fora da imagem).
   69 testes verdes)_
-- [ ] Fase 8 — Segurança + hardening
+- [x] Fase 8 — Segurança + hardening _(scanner de conteúdo não-confiável em
+  `security.py` — LLM Guard opcional + fallback heurístico determinístico —
+  aplicado na ingestão e nos retornos do `rag_busca`; todos os agentes já
+  delimitam `<material>`. Teste de injeção indireta: material malicioso é
+  neutralizado E nenhuma RN nasce aprovada (HITL). Tetos por run
+  (MAX_TOKENS/MAX_USD) via métricas da Fase 7 abortam o run com 402 e status
+  `abortado`; máx. iterações/timeout de tool por env. Limites de ingestão
+  (~200 páginas/arquivo, 1 run ativo por projeto — run conclui no E6). Auth por
+  token (X-API-Token) + rate limit por IP; security headers no Next. Job `garak`
+  no CI (workflow_dispatch, relatório como artifact). 78 testes verdes)_

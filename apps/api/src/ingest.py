@@ -34,6 +34,14 @@ class Chunk:
     page: int | None
 
 
+def pdf_page_count(content: bytes) -> int:
+    """Número de páginas de um PDF (para o limite de ingestão). 0 se ilegível."""
+    try:
+        return len(PdfReader(io.BytesIO(content)).pages)
+    except Exception:  # noqa: BLE001 — PDF corrompido: deixa o parse tratar depois.
+        return 0
+
+
 def parse_material(content: bytes, source_type: str) -> list[ParsedBlock]:
     """Extrai blocos de texto do material conforme o tipo de origem.
 

@@ -35,6 +35,7 @@ from ..agents.regras import (
     resolver_contestacao,
 )
 from ..agents.schemas import ConjuntoRegras, ExtracaoRegras, RelatorioCritico
+from ..config import settings
 from ..db import SessionLocal
 from ..models import BusinessRule, RuleStatus, Run
 from ..services_regras import (
@@ -44,7 +45,8 @@ from ..services_regras import (
 )
 from .pipeline import _checkpointer, dossie_do_run
 
-MAX_ITER = 3
+# Máx. de iterações crítico↔refinador, configurável por env (Fase 8).
+MAX_ITER = settings.max_iter_per_stage
 
 
 class RegrasState(TypedDict):

@@ -115,6 +115,12 @@ def structured_call(
     Retorna uma instância validada de `schema`; esgotadas as tentativas,
     propaga o último erro.
     """
+    # Teto de orçamento por run (Fase 8): se o run já cruzou MAX_TOKENS/USD,
+    # aborta ANTES de gastar mais. BudgetExceeded sobe até o handler da API.
+    from .budget import check_budget
+
+    check_budget(session_id)
+
     model_name = get_model_name(node)
     llm = chat(node).bind(response_format={"type": "json_object"})
     schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False, indent=2)

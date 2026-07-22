@@ -16,6 +16,8 @@ from fastapi import (
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .auth import require_token
+from .config import settings
 from .db import get_session
 from .graph.e5_pipeline import get_e5, start_e5
 from .graph.fatias_pipeline import get_fatias, start_fatias
@@ -32,8 +34,17 @@ from .graph.regras_pipeline import (
     resolver_contestacao_run,
     start_regras,
 )
+from .ingest import pdf_page_count
 from .metrics import metrics_agregado, metrics_por_run
-from .models import GrillQA, GrillSession, Material, MaterialStatus, Project, Run
+from .models import (
+    GrillQA,
+    GrillSession,
+    Material,
+    MaterialStatus,
+    Project,
+    Run,
+    RunStatus,
+)
 from .schemas import (
     AnswersIn,
     BuscaResultOut,
@@ -59,7 +70,8 @@ from .services import process_material
 from .services_regras import atualizar_status_fatia
 from .tools.rag_busca import rag_busca
 
-router = APIRouter()
+# Auth por token vale para todo o router (o /health, no app, fica aberto).
+router = APIRouter(dependencies=[Depends(require_token)])
 
 # Limites duros do PRD §4/E1.
 MAX_FILE_BYTES = 25 * 1024 * 1024  # 25 MB
@@ -121,6 +133,17 @@ async def add_material(
             raise HTTPException(
                 status_code=415, detail=f"tipo não suportado: {ext or '(sem extensão)'}"
             )
+        # Limite de páginas por PDF (PRD §4/E1) — rejeita, nunca trunca calado.
+        if source_type == "pdf" and settings.max_pages_per_file > 0:
+            paginas = pdf_page_count(content)
+            if paginas > settings.max_pages_per_file:
+                raise HTTPException(
+                    status_code=413,
+                    detail=(
+                        f"PDF com {paginas} páginas excede o limite de "
+                        f"{settings.max_pages_per_file}"
+                    ),
+                )
     elif text is not None and text.strip():
         content = text.encode("utf-8")
         filename = "texto colado"
@@ -184,6 +207,17 @@ def busca(
 def criar_run(project_id: int, session: Session = Depends(get_session)) -> GrillOut:
     """Inicia uma entrevista Grill Me e retorna a primeira rodada de perguntas."""
     _require_project(session, project_id)
+    # 1 run ativo por projeto (PRD §4/E1): bloqueia entrevistas concorrentes.
+    ativo = session.scalar(
+        select(Run.id)
+        .where(Run.project_id == project_id, Run.status == RunStatus.em_andamento)
+        .limit(1)
+    )
+    if ativo is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"projeto já tem um run ativo (#{ativo}); conclua-o antes de iniciar outro",
+        )
     return GrillOut(**start_grill(project_id))
 
 

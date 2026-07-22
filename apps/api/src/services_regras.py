@@ -22,6 +22,8 @@ from .models import (
     BusinessRule,
     Epic,
     RuleStatus,
+    Run,
+    RunStatus,
     ScenarioKind,
     Slice,
     SliceStatus,
@@ -482,6 +484,10 @@ def persistir_fatias(
                 (dest / f"{code}.md").write_text(package_md, encoding="utf-8")
             except OSError:
                 pass  # best-effort: o banco é a fonte de verdade
+    # E6 é o estágio terminal: conclui o run (libera "1 run ativo por projeto").
+    run = session.get(Run, run_id)
+    if run is not None and run.status == RunStatus.em_andamento:
+        run.status = RunStatus.concluido
     session.commit()
 
 

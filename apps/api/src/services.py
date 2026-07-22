@@ -11,6 +11,7 @@ from .db import SessionLocal
 from .embeddings import embed_texts
 from .ingest import parse_and_chunk
 from .models import Chunk, Material, MaterialStatus
+from .security import sanitizar
 
 
 def process_material(material_id: int, content: bytes, source_type: str) -> None:
@@ -24,14 +25,16 @@ def process_material(material_id: int, content: bytes, source_type: str) -> None
         session.commit()
 
         chunks = parse_and_chunk(content, source_type)
-        texts = [c.text for c in chunks]
+        # Conteúdo NÃO CONFIÁVEL: sanitiza antes de virar corpus (neutraliza
+        # injeção de prompt e redige segredos). O embedding é do texto limpo.
+        texts = [sanitizar(c.text, origem=f"material:{material_id}") for c in chunks]
         vectors = embed_texts(texts)
 
-        for chunk, vector in zip(chunks, vectors, strict=True):
+        for chunk, text, vector in zip(chunks, texts, vectors, strict=True):
             session.add(
                 Chunk(
                     material_id=material_id,
-                    content=chunk.text,
+                    content=text,
                     embedding=vector,
                     page=chunk.page,
                 )

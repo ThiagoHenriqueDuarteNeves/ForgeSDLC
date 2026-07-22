@@ -20,6 +20,7 @@ from langgraph.types import Command, interrupt
 from sqlalchemy import select
 
 from ..agents.historias import gerar_historias, validar_matriz
+from ..config import settings
 from ..db import SessionLocal
 from ..models import BusinessRule, Epic, Run, Story, StoryRule
 from ..services_regras import (
@@ -29,7 +30,8 @@ from ..services_regras import (
 )
 from .pipeline import _checkpointer, dossie_do_run
 
-MAX_ITER = 3
+# Máx. de iterações do auto-refino da matriz, configurável por env (Fase 8).
+MAX_ITER = settings.max_iter_per_stage
 
 
 class HistoriasState(TypedDict):

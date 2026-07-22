@@ -19,12 +19,14 @@ from sqlalchemy import select
 
 from ..agents.fatiador import fatiar, injetar_cenarios, validar_fatias
 from ..agents.schemas import MapaFatias
+from ..config import settings
 from ..db import SessionLocal
 from ..models import Epic, Run, Slice, Story, TestScenario
 from ..services_regras import historias_aprovadas, persistir_fatias
 from .pipeline import _checkpointer, dossie_do_run
 
-MAX_ITER = 3
+# Máx. de iterações de refatiamento, configurável por env (Fase 8).
+MAX_ITER = settings.max_iter_per_stage
 
 
 class FatiasState(TypedDict):

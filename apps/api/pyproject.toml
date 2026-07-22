@@ -42,6 +42,10 @@ dev = [
 eval = [
     "deepeval>=1.4",
 ]
+# LLM Guard (Fase 8) NÃO entra aqui de propósito: puxa torch/transformers/spacy
+# e conflita com o resolver das nossas deps modernas. É opcional e carregado de
+# forma preguiçosa por src/security.py — o fallback heurístico cobre o CI. Para
+# ligar em produção: `uv pip install llm-guard` + USE_LLM_GUARD=true.
 
 [tool.ruff]
 line-length = 100
