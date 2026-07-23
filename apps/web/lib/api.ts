@@ -14,6 +14,23 @@ export interface Material {
   created_at: string;
 }
 
+// Quando a API é servida por um share público do zrok, o túnel intercepta
+// requisições de browser e devolve uma página de aviso em HTML. O JSON nunca
+// chega, e o erro só aparece muito depois — num `.map` de um objeto que
+// deveria ser lista. Estes headers pulam essa página.
+const TUNEL_HEADERS: Record<string, string> = {
+  "skip-zrok-interstitial": "true",
+  "zrok-skip-interstitial": "true",
+};
+
+/** `fetch` na API: resolve a base e soma os headers do túnel a cada chamada. */
+function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: { ...TUNEL_HEADERS, ...init.headers },
+  });
+}
+
 async function jsonOrThrow<T>(resp: Response): Promise<T> {
   if (!resp.ok) {
     const detail = await resp.text().catch(() => "");
@@ -23,12 +40,12 @@ async function jsonOrThrow<T>(resp: Response): Promise<T> {
 }
 
 export async function listProjects(): Promise<Project[]> {
-  return jsonOrThrow(await fetch(`${API_URL}/projects`, { cache: "no-store" }));
+  return jsonOrThrow(await apiFetch(`/projects`, { cache: "no-store" }));
 }
 
 export async function createProject(name: string): Promise<Project> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects`, {
+    await apiFetch(`/projects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -38,7 +55,7 @@ export async function createProject(name: string): Promise<Project> {
 
 export async function listMaterials(projectId: number): Promise<Material[]> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects/${projectId}/materials`, {
+    await apiFetch(`/projects/${projectId}/materials`, {
       cache: "no-store",
     }),
   );
@@ -51,7 +68,7 @@ export async function uploadFile(
   const form = new FormData();
   form.append("file", file);
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects/${projectId}/materials`, {
+    await apiFetch(`/projects/${projectId}/materials`, {
       method: "POST",
       body: form,
     }),
@@ -65,7 +82,7 @@ export async function uploadText(
   const form = new FormData();
   form.append("text", text);
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects/${projectId}/materials`, {
+    await apiFetch(`/projects/${projectId}/materials`, {
       method: "POST",
       body: form,
     }),
@@ -81,13 +98,13 @@ export interface Nota {
 
 export async function listarNotas(projectId: number): Promise<Nota[]> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects/${projectId}/notes`, { cache: "no-store" }),
+    await apiFetch(`/projects/${projectId}/notes`, { cache: "no-store" }),
   );
 }
 
 export async function criarNota(projectId: number, text: string): Promise<Nota> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects/${projectId}/notes`, {
+    await apiFetch(`/projects/${projectId}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -113,13 +130,13 @@ export interface GrillState {
 
 export async function startRun(projectId: number): Promise<GrillState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/projects/${projectId}/runs`, { method: "POST" }),
+    await apiFetch(`/projects/${projectId}/runs`, { method: "POST" }),
   );
 }
 
 export async function getRun(runId: number): Promise<GrillState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}`, { cache: "no-store" }),
+    await apiFetch(`/runs/${runId}`, { cache: "no-store" }),
   );
 }
 
@@ -129,7 +146,7 @@ export async function answerRun(
   encerrar: boolean,
 ): Promise<GrillState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/answers`, {
+    await apiFetch(`/runs/${runId}/answers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ respostas, encerrar }),
@@ -156,13 +173,13 @@ export interface RegrasState {
 
 export async function extrairRegras(runId: number): Promise<RegrasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/regras`, { method: "POST" }),
+    await apiFetch(`/runs/${runId}/regras`, { method: "POST" }),
   );
 }
 
 export async function getRegras(runId: number): Promise<RegrasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/regras`, { cache: "no-store" }),
+    await apiFetch(`/runs/${runId}/regras`, { cache: "no-store" }),
   );
 }
 
@@ -172,7 +189,7 @@ export async function decidirRegras(
   motivos: Record<string, string> = {},
 ): Promise<RegrasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/regras/decisoes`, {
+    await apiFetch(`/runs/${runId}/regras/decisoes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decisoes, motivos }),
@@ -193,7 +210,7 @@ export async function getContestacao(
   code: string,
 ): Promise<Contestacao> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/regras/${code}/contestacao`, {
+    await apiFetch(`/runs/${runId}/regras/${code}/contestacao`, {
       cache: "no-store",
     }),
   );
@@ -205,7 +222,7 @@ export async function resolverContestacao(
   respostas: Record<string, string>,
 ): Promise<RegrasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/regras/${code}/contestacao`, {
+    await apiFetch(`/runs/${runId}/regras/${code}/contestacao`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ respostas }),
@@ -238,13 +255,13 @@ export interface HistoriasState {
 
 export async function gerarHistorias(runId: number): Promise<HistoriasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/historias`, { method: "POST" }),
+    await apiFetch(`/runs/${runId}/historias`, { method: "POST" }),
   );
 }
 
 export async function getHistorias(runId: number): Promise<HistoriasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/historias`, { cache: "no-store" }),
+    await apiFetch(`/runs/${runId}/historias`, { cache: "no-store" }),
   );
 }
 
@@ -253,7 +270,7 @@ export async function decidirHistorias(
   decisoes: Record<string, string>,
 ): Promise<HistoriasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/historias/decisoes`, {
+    await apiFetch(`/runs/${runId}/historias/decisoes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decisoes }),
@@ -290,13 +307,13 @@ export interface E5State {
 
 export async function rodarE5(runId: number): Promise<E5State> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/e5`, { method: "POST" }),
+    await apiFetch(`/runs/${runId}/e5`, { method: "POST" }),
   );
 }
 
 export async function getE5(runId: number): Promise<E5State> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/e5`, { cache: "no-store" }),
+    await apiFetch(`/runs/${runId}/e5`, { cache: "no-store" }),
   );
 }
 
@@ -317,13 +334,13 @@ export interface FatiasState {
 
 export async function rodarFatias(runId: number): Promise<FatiasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/fatias`, { method: "POST" }),
+    await apiFetch(`/runs/${runId}/fatias`, { method: "POST" }),
   );
 }
 
 export async function getFatias(runId: number): Promise<FatiasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/fatias`, { cache: "no-store" }),
+    await apiFetch(`/runs/${runId}/fatias`, { cache: "no-store" }),
   );
 }
 
@@ -333,7 +350,7 @@ export async function atualizarStatusFatia(
   status: string,
 ): Promise<FatiasState> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/fatias/${code}`, {
+    await apiFetch(`/runs/${runId}/fatias/${code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -367,6 +384,6 @@ export interface RunMetricas {
 
 export async function getMetricas(runId: number): Promise<RunMetricas> {
   return jsonOrThrow(
-    await fetch(`${API_URL}/runs/${runId}/metrics`, { cache: "no-store" }),
+    await apiFetch(`/runs/${runId}/metrics`, { cache: "no-store" }),
   );
 }

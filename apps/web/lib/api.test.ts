@@ -67,6 +67,29 @@ describe("api client", () => {
     expect(url).toContain("/projects/9/notes");
   });
 
+  it("envia os headers que pulam o interstitial do zrok", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listarNotas(1);
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.headers["skip-zrok-interstitial"]).toBe("true");
+    expect(init.headers["zrok-skip-interstitial"]).toBe("true");
+  });
+
+  it("mantem o Content-Type ao somar os headers do tunel", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 1, name: "P", created_at: "now" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createProject("P");
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.headers["Content-Type"]).toBe("application/json");
+    expect(init.headers["skip-zrok-interstitial"]).toBe("true");
+  });
+
   it("lanca em resposta de erro", async () => {
     vi.stubGlobal(
       "fetch",
