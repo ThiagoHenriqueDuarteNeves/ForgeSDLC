@@ -50,6 +50,10 @@ export default function FatiasPanel({
   );
   const [aberta, setAberta] = useState<string | null>(null);
 
+  // "concluido"/"pendente" com lista vazia é a resposta para um estágio que
+  // nunca rodou. Só há conteúdo se houver fatias; sem elas, oferece fatiar.
+  const temFatias = (state?.fatias.length ?? 0) > 0;
+
   async function mudarStatus(code: string, status: string) {
     try {
       setState(await atualizarStatusFatia(runId, code, status));
@@ -62,7 +66,7 @@ export default function FatiasPanel({
     <section style={card}>
       <h2 style={{ fontSize: "1rem", marginTop: 0 }}>Fatias Verticais (E6)</h2>
 
-      {(!state || state.status === "erro") && (
+      {!rodando && !temFatias && (
         <>
           <button onClick={disparar} disabled={rodando} style={btn}>
             Fatiar
@@ -86,7 +90,7 @@ export default function FatiasPanel({
         </p>
       )}
 
-      {state && !rodando && state.status !== "erro" && (
+      {state && temFatias && !rodando && (
         <div>
           {state.fatias.map((f) => (
             <FatiaRow

@@ -74,6 +74,10 @@ export default function RegrasPanel({
   const [contest, setContest] = useState<Contestacao | null>(null);
   const [respContest, setRespContest] = useState<Record<string, string>>({});
 
+  // "concluido" com lista vazia é a resposta da API para um estágio que nunca
+  // rodou. Só há conteúdo se houver regras; sem elas, o painel oferece extrair.
+  const temRegras = (state?.regras.length ?? 0) > 0;
+
   async function run(fn: () => Promise<RegrasState>) {
     setLoading(true);
     try {
@@ -121,7 +125,7 @@ export default function RegrasPanel({
         Regras de Negócio — extração + refino (E3)
       </h2>
 
-      {(!state || state.status === "erro") && (
+      {!rodando && !temRegras && (
         <button onClick={disparar} disabled={rodando} style={btn}>
           Extrair regras
         </button>
@@ -142,7 +146,7 @@ export default function RegrasPanel({
 
       {loading && state && <p style={{ opacity: 0.7 }}>Processando…</p>}
 
-      {state && !loading && !rodando && state.status !== "erro" && (
+      {state && temRegras && !loading && !rodando && (
         <>
           {aguardando && (
             <p style={{ opacity: 0.7, marginTop: 0 }}>

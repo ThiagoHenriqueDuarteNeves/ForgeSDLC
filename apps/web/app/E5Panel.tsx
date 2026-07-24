@@ -49,13 +49,17 @@ export default function E5Panel({
     onError,
   );
 
+  // "concluido" com adr nulo e sem cenários é a resposta para um estágio que
+  // nunca rodou. Só há conteúdo com ADR ou histórias; sem isso, oferece rodar.
+  const temE5 = !!state?.adr || (state?.historias.length ?? 0) > 0;
+
   return (
     <section style={card}>
       <h2 style={{ fontSize: "1rem", marginTop: 0 }}>
         Arquitetura ∥ Testes (E5)
       </h2>
 
-      {(!state || state.status === "erro") && (
+      {!rodando && !temE5 && (
         <>
           <button onClick={disparar} disabled={rodando} style={btn}>
             Rodar E5

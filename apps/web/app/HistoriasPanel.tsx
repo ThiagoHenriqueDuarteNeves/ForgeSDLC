@@ -50,6 +50,11 @@ export default function HistoriasPanel({
   const [decisoes, setDecisoes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
+  // "concluido" com listas vazias é a resposta da API para um estágio que nunca
+  // rodou (o grafo não tem passo pendente). Só há conteúdo se houver histórias;
+  // sem elas, o painel oferece disparar — não trata como concluído.
+  const temHistorias = (state?.historias.length ?? 0) > 0;
+
   async function run(fn: () => Promise<HistoriasState>) {
     setLoading(true);
     try {
@@ -72,7 +77,7 @@ export default function HistoriasPanel({
         Histórias de Usuário — INVEST + Gherkin (E4)
       </h2>
 
-      {(!state || state.status === "erro") && (
+      {!rodando && !temHistorias && (
         <>
           <button onClick={disparar} disabled={rodando} style={btn}>
             Gerar histórias
@@ -98,7 +103,7 @@ export default function HistoriasPanel({
 
       {loading && state && <p style={{ opacity: 0.7 }}>Processando…</p>}
 
-      {state && !loading && !rodando && state.status !== "erro" && (
+      {state && temHistorias && !loading && !rodando && (
         <>
           {state.epicos.map((ep) => (
             <EpicoBloco
