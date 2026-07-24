@@ -114,6 +114,8 @@ class RegrasOut(BaseModel):
     run_id: int
     status: str  # aguardando_aprovacao | concluido
     regras: list[RegraOut] = []
+    # Preenchido quando o estágio falhou em background (status='erro').
+    erro: str | None = None
 
 
 # ─── E4: épicos e histórias ───────────────────────────────────────────────
@@ -137,6 +139,8 @@ class HistoriasOut(BaseModel):
     status: str
     epicos: list[EpicoOut] = []
     historias: list[HistoriaOut] = []
+    # Preenchido quando o estágio falhou em background (status='erro').
+    erro: str | None = None
 
 
 # ─── E5: ADR + cenários de teste ──────────────────────────────────────────
@@ -164,6 +168,8 @@ class E5Out(BaseModel):
     status: str  # pendente | concluido
     adr: AdrOut | None = None
     historias: list[HistoriaCenariosOut] = []
+    # Preenchido quando o estágio falhou em background (status='erro').
+    erro: str | None = None
 
 
 # ─── E6: fatias verticais ─────────────────────────────────────────────────
@@ -179,6 +185,8 @@ class FatiasOut(BaseModel):
     run_id: int
     status: str  # pendente | concluido
     fatias: list[FatiaOut] = []
+    # Preenchido quando o estágio falhou em background (status='erro').
+    erro: str | None = None
 
 
 class StatusFatiaIn(BaseModel):

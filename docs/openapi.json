@@ -231,6 +231,17 @@
               }
             ]
           },
+          "erro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erro"
+          },
           "historias": {
             "default": [],
             "items": {
@@ -369,6 +380,17 @@
       },
       "FatiasOut": {
         "properties": {
+          "erro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erro"
+          },
           "fatias": {
             "default": [],
             "items": {
@@ -630,6 +652,17 @@
             "title": "Epicos",
             "type": "array"
           },
+          "erro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erro"
+          },
           "historias": {
             "default": [],
             "items": {
@@ -848,6 +881,17 @@
       },
       "RegrasOut": {
         "properties": {
+          "erro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erro"
+          },
           "regras": {
             "default": [],
             "items": {
@@ -1817,7 +1861,7 @@
         "summary": "Obter E5"
       },
       "post": {
-        "description": "Roda os ramos paralelos (ADR + cenários); exige histórias aprovadas.",
+        "description": "Dispara os ramos paralelos (ADR + cenários). Acompanhe pelo GET.",
         "operationId": "rodar_e5_runs__run_id__e5_post",
         "parameters": [
           {
@@ -1847,7 +1891,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1926,7 +1970,7 @@
         "summary": "Obter Fatias"
       },
       "post": {
-        "description": "Agrupa histórias aprovadas em fatias verticais; exige histórias aprovadas.",
+        "description": "Dispara o fatiador (E6); exige histórias aprovadas. Acompanhe pelo GET.",
         "operationId": "rodar_fatias_runs__run_id__fatias_post",
         "parameters": [
           {
@@ -1956,7 +2000,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2166,7 +2210,7 @@
         "summary": "Obter Historias Run"
       },
       "post": {
-        "description": "Roda a E4 (analista) até o gate de aprovação; exige RNs aprovadas.",
+        "description": "Dispara a E4 (analista); exige RNs aprovadas. Acompanhe pelo GET.",
         "operationId": "gerar_historias_run_runs__run_id__historias_post",
         "parameters": [
           {
@@ -2196,7 +2240,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2397,7 +2441,7 @@
         "summary": "Obter Regras Run"
       },
       "post": {
-        "description": "Roda o subgrafo E3 (extração + refino) até o gate de aprovação.",
+        "description": "Dispara a E3 (extração + refino). Acompanhe em GET /runs/{run_id}/regras.",
         "operationId": "extrair_regras_run_runs__run_id__regras_post",
         "parameters": [
           {
@@ -2427,7 +2471,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {

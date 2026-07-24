@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 from fastapi import (
     APIRouter,
@@ -19,11 +20,14 @@ from sqlalchemy.orm import Session
 from .auth import require_token
 from .config import settings
 from .db import get_session
-from .graph.e5_pipeline import get_e5, start_e5
-from .graph.fatias_pipeline import get_fatias, start_fatias
+from .execucao import RODANDO, concluir, executar, iniciar
+from .execucao import estado as estado_execucao
+from .graph.e5_pipeline import get_e5, preparar_e5, start_e5
+from .graph.fatias_pipeline import get_fatias, preparar_fatias, start_fatias
 from .graph.historias_pipeline import (
     aprovar_historias,
     get_historias,
+    preparar_historias,
     start_historias,
 )
 from .graph.pipeline import answer_grill, get_grill, start_grill
@@ -31,6 +35,7 @@ from .graph.regras_pipeline import (
     aprovar_regras,
     contestacao_perguntas,
     get_regras,
+    preparar_regras,
     resolver_contestacao_run,
     start_regras,
 )
@@ -301,19 +306,59 @@ def obter_historico_grill(
     )
 
 
-# ─── E3: regras de negócio ────────────────────────────────────────────────
-@router.post("/runs/{run_id}/regras", response_model=RegrasOut, status_code=201)
-def extrair_regras_run(run_id: int) -> RegrasOut:
-    """Roda o subgrafo E3 (extração + refino) até o gate de aprovação."""
+# ─── Estágios longos (E3..E6): despacho em background ─────────────────────
+# A E3 faz ~9 chamadas de LLM gerando 12-20k tokens cada e leva ~10 minutos.
+# Nenhum túnel ou browser mantém a requisição aberta até lá (o zrok corta em
+# ~150s com 504). Estas rotas validam de forma síncrona — o 409 informativo
+# precisa chegar na hora —, despacham o trabalho e respondem 202. A UI então
+# acompanha pelo GET, que passa a refletir "rodando" e "erro".
+
+
+def _despachar(
+    run_id: int,
+    estagio: str,
+    guarda: Callable[[int], object],
+    trabalho: Callable[[int], object],
+    background: BackgroundTasks,
+) -> None:
+    """Reserva o estágio, valida e agenda o trabalho. Levanta HTTPException(409)."""
+    # Reservar antes de validar: se já está rodando, "já em andamento" é a
+    # resposta mais útil, e evita reler o banco à toa.
+    if not iniciar(run_id, estagio):
+        raise HTTPException(
+            status_code=409,
+            detail=f"{estagio}: já está em andamento para este run; aguarde",
+        )
     try:
-        return RegrasOut(**start_regras(run_id))
+        guarda(run_id)
     except ValueError as e:
+        # A reserva não pode sobreviver à reprovação, senão o botão trava
+        # para sempre num estágio que nunca chegou a rodar.
+        concluir(run_id, estagio)
         raise HTTPException(status_code=409, detail=str(e)) from e
+    background.add_task(executar, run_id, estagio, lambda: trabalho(run_id))
+
+
+def _em_curso(run_id: int, estagio: str) -> dict | None:
+    """Corpo de resposta vindo do registry, ou None se não há execução."""
+    e = estado_execucao(run_id, estagio)
+    if e is None:
+        return None
+    return {"run_id": run_id, "status": e.status, "erro": e.erro}
+
+
+# ─── E3: regras de negócio ────────────────────────────────────────────────
+@router.post("/runs/{run_id}/regras", response_model=RegrasOut, status_code=202)
+def extrair_regras_run(run_id: int, background: BackgroundTasks) -> RegrasOut:
+    """Dispara a E3 (extração + refino). Acompanhe em GET /runs/{run_id}/regras."""
+    _despachar(run_id, "regras", preparar_regras, start_regras, background)
+    return RegrasOut(run_id=run_id, status=RODANDO)
 
 
 @router.get("/runs/{run_id}/regras", response_model=RegrasOut)
 def obter_regras_run(run_id: int) -> RegrasOut:
-    return RegrasOut(**get_regras(run_id))
+    em_curso = _em_curso(run_id, "regras")
+    return RegrasOut(**em_curso) if em_curso else RegrasOut(**get_regras(run_id))
 
 
 @router.post("/runs/{run_id}/regras/decisoes", response_model=RegrasOut)
@@ -345,18 +390,19 @@ def resolver_contestacao_endpoint(
 
 
 # ─── E4: épicos e histórias ───────────────────────────────────────────────
-@router.post("/runs/{run_id}/historias", response_model=HistoriasOut, status_code=201)
-def gerar_historias_run(run_id: int) -> HistoriasOut:
-    """Roda a E4 (analista) até o gate de aprovação; exige RNs aprovadas."""
-    try:
-        return HistoriasOut(**start_historias(run_id))
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+@router.post("/runs/{run_id}/historias", response_model=HistoriasOut, status_code=202)
+def gerar_historias_run(run_id: int, background: BackgroundTasks) -> HistoriasOut:
+    """Dispara a E4 (analista); exige RNs aprovadas. Acompanhe pelo GET."""
+    _despachar(run_id, "historias", preparar_historias, start_historias, background)
+    return HistoriasOut(run_id=run_id, status=RODANDO)
 
 
 @router.get("/runs/{run_id}/historias", response_model=HistoriasOut)
 def obter_historias_run(run_id: int) -> HistoriasOut:
-    return HistoriasOut(**get_historias(run_id))
+    em_curso = _em_curso(run_id, "historias")
+    return (
+        HistoriasOut(**em_curso) if em_curso else HistoriasOut(**get_historias(run_id))
+    )
 
 
 @router.post("/runs/{run_id}/historias/decisoes", response_model=HistoriasOut)
@@ -366,33 +412,31 @@ def decidir_historias_run(run_id: int, body: DecisoesIn) -> HistoriasOut:
 
 
 # ─── E5: arquiteto de stack ∥ designer de testes ──────────────────────────
-@router.post("/runs/{run_id}/e5", response_model=E5Out, status_code=201)
-def rodar_e5(run_id: int) -> E5Out:
-    """Roda os ramos paralelos (ADR + cenários); exige histórias aprovadas."""
-    try:
-        return E5Out(**start_e5(run_id))
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+@router.post("/runs/{run_id}/e5", response_model=E5Out, status_code=202)
+def rodar_e5(run_id: int, background: BackgroundTasks) -> E5Out:
+    """Dispara os ramos paralelos (ADR + cenários). Acompanhe pelo GET."""
+    _despachar(run_id, "e5", preparar_e5, start_e5, background)
+    return E5Out(run_id=run_id, status=RODANDO)
 
 
 @router.get("/runs/{run_id}/e5", response_model=E5Out)
 def obter_e5(run_id: int) -> E5Out:
-    return E5Out(**get_e5(run_id))
+    em_curso = _em_curso(run_id, "e5")
+    return E5Out(**em_curso) if em_curso else E5Out(**get_e5(run_id))
 
 
 # ─── E6: fatiador vertical ────────────────────────────────────────────────
-@router.post("/runs/{run_id}/fatias", response_model=FatiasOut, status_code=201)
-def rodar_fatias(run_id: int) -> FatiasOut:
-    """Agrupa histórias aprovadas em fatias verticais; exige histórias aprovadas."""
-    try:
-        return FatiasOut(**start_fatias(run_id))
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+@router.post("/runs/{run_id}/fatias", response_model=FatiasOut, status_code=202)
+def rodar_fatias(run_id: int, background: BackgroundTasks) -> FatiasOut:
+    """Dispara o fatiador (E6); exige histórias aprovadas. Acompanhe pelo GET."""
+    _despachar(run_id, "fatias", preparar_fatias, start_fatias, background)
+    return FatiasOut(run_id=run_id, status=RODANDO)
 
 
 @router.get("/runs/{run_id}/fatias", response_model=FatiasOut)
 def obter_fatias(run_id: int) -> FatiasOut:
-    return FatiasOut(**get_fatias(run_id))
+    em_curso = _em_curso(run_id, "fatias")
+    return FatiasOut(**em_curso) if em_curso else FatiasOut(**get_fatias(run_id))
 
 
 @router.patch("/runs/{run_id}/fatias/{code}", response_model=FatiasOut)

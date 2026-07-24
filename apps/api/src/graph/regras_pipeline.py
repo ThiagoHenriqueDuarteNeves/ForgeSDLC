@@ -194,8 +194,12 @@ def _estado(run_id: int) -> dict:
     }
 
 
-def start_regras(run_id: int) -> dict:
-    """Roda o subgrafo E3 até o interrupt de aprovação; persiste as RNs."""
+def preparar_regras(run_id: int) -> RegrasState:
+    """Valida o run e monta o estado inicial. Levanta ValueError se não está pronto.
+
+    Separado de `start_regras` porque a rota precisa validar de forma síncrona
+    (para responder 409 na hora) e só então despachar o trabalho longo.
+    """
     dossie = dossie_do_run(run_id)
     if not dossie:
         raise ValueError("dossiê ainda não gerado para este run (rode o Grill Me)")
@@ -219,7 +223,12 @@ def start_regras(run_id: int) -> dict:
         "decisoes": {},
         "motivos": {},
     }
-    _graph().invoke(initial, _thread(run_id))
+    return initial
+
+
+def start_regras(run_id: int) -> dict:
+    """Roda o subgrafo E3 até o interrupt de aprovação; persiste as RNs."""
+    _graph().invoke(preparar_regras(run_id), _thread(run_id))
     return _estado(run_id)
 
 

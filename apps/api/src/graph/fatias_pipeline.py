@@ -143,8 +143,12 @@ def _estado(run_id: int) -> dict:
     }
 
 
-def start_fatias(run_id: int) -> dict:
-    """Roda o fatiador (E6): agrupa histórias aprovadas em fatias verticais."""
+def preparar_fatias(run_id: int) -> FatiasState:
+    """Valida o run e monta o estado inicial. Levanta ValueError se não está pronto.
+
+    Separado de `start_fatias` porque a rota valida de forma síncrona (409
+    imediato) e só então despacha o trabalho longo em background.
+    """
     dossie = dossie_do_run(run_id)
     if not dossie:
         raise ValueError("dossiê ausente — rode o Grill Me (E2) antes")
@@ -170,7 +174,12 @@ def start_fatias(run_id: int) -> dict:
         "feedback": "",
         "iteracao": 0,
     }
-    _graph().invoke(initial, _thread(run_id))
+    return initial
+
+
+def start_fatias(run_id: int) -> dict:
+    """Roda o fatiador (E6): agrupa histórias aprovadas em fatias verticais."""
+    _graph().invoke(preparar_fatias(run_id), _thread(run_id))
     return _estado(run_id)
 
 
