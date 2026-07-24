@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   type Fatia,
@@ -9,6 +9,7 @@ import {
   getFatias,
   rodarFatias,
 } from "@/lib/api";
+import { useEstagio } from "@/lib/useEstagio";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -42,32 +43,18 @@ export default function FatiasPanel({
   runId: number;
   onError: (m: string) => void;
 }) {
-  const [state, setState] = useState<FatiasState | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { state, setState, rodando, erro, disparar } = useEstagio<FatiasState>(
+    () => getFatias(runId),
+    () => rodarFatias(runId),
+    onError,
+  );
   const [aberta, setAberta] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  async function mudarStatus(code: string, status: string) {
     try {
-      const s = await getFatias(runId);
-      if (s.fatias.length > 0) setState(s);
-    } catch {
-      /* sem fatias ainda */
-    }
-  }, [runId]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch pós-await
-    refresh();
-  }, [refresh]);
-
-  async function run(fn: () => Promise<FatiasState>) {
-    setLoading(true);
-    try {
-      setState(await fn());
+      setState(await atualizarStatusFatia(runId, code, status));
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -75,10 +62,10 @@ export default function FatiasPanel({
     <section style={card}>
       <h2 style={{ fontSize: "1rem", marginTop: 0 }}>Fatias Verticais (E6)</h2>
 
-      {!state && (
+      {(!state || state.status === "erro") && (
         <>
-          <button onClick={() => run(() => rodarFatias(runId))} disabled={loading} style={btn}>
-            {loading ? "Fatiando (valida as 3 camadas)…" : "Fatiar"}
+          <button onClick={disparar} disabled={rodando} style={btn}>
+            Fatiar
           </button>
           <p style={{ opacity: 0.5, fontSize: "0.8rem" }}>
             exige histórias aprovadas na E4; cada fatia atravessa UI + API + banco + testes.
@@ -86,9 +73,20 @@ export default function FatiasPanel({
         </>
       )}
 
-      {loading && state && <p style={{ opacity: 0.7 }}>Processando…</p>}
+      {rodando && (
+        <p style={{ opacity: 0.7 }}>
+          Fatiando (valida as 3 camadas)… leva alguns minutos; pode fechar a aba
+          e voltar depois.
+        </p>
+      )}
 
-      {state && !loading && (
+      {erro && (
+        <p style={{ color: "#f87171", marginTop: 8 }}>
+          O fatiamento falhou: {erro}. Clique para tentar de novo.
+        </p>
+      )}
+
+      {state && !rodando && state.status !== "erro" && (
         <div>
           {state.fatias.map((f) => (
             <FatiaRow
@@ -96,7 +94,7 @@ export default function FatiasPanel({
               fatia={f}
               aberta={aberta === f.code}
               onToggle={() => setAberta(aberta === f.code ? null : f.code)}
-              onStatus={(s) => run(() => atualizarStatusFatia(runId, f.code, s))}
+              onStatus={(s) => mudarStatus(f.code, s)}
             />
           ))}
         </div>

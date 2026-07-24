@@ -31,6 +31,20 @@ function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
+// Estágios longos (E3..E6) rodam em background: o POST responde 202 e a UI
+// acompanha pelo GET, cujo `status` passa a "rodando" e, em falha, "erro"
+// (com a mensagem em `erro`). O botão do estágio deriva daqui, não do fetch
+// local — assim continua correto após 504, reload ou troca de dispositivo.
+export const STATUS_RODANDO = "rodando";
+export const STATUS_ERRO = "erro";
+
+/** true enquanto o estágio está sendo processado no servidor. */
+export function estaRodando(
+  estado: { status: string; erro?: string | null } | null,
+): boolean {
+  return estado?.status === STATUS_RODANDO;
+}
+
 async function jsonOrThrow<T>(resp: Response): Promise<T> {
   if (!resp.ok) {
     const detail = await resp.text().catch(() => "");
@@ -169,6 +183,8 @@ export interface RegrasState {
   run_id: number;
   status: string; // aguardando_aprovacao | concluido
   regras: Regra[];
+  // Presente quando o estágio falhou em background (status='erro').
+  erro?: string | null;
 }
 
 export async function extrairRegras(runId: number): Promise<RegrasState> {
@@ -251,6 +267,8 @@ export interface HistoriasState {
   status: string;
   epicos: Epico[];
   historias: Historia[];
+  // Presente quando o estágio falhou em background (status='erro').
+  erro?: string | null;
 }
 
 export async function gerarHistorias(runId: number): Promise<HistoriasState> {
@@ -303,6 +321,8 @@ export interface E5State {
   status: string; // pendente | concluido
   adr: Adr | null;
   historias: HistoriaCenarios[];
+  // Presente quando o estágio falhou em background (status='erro').
+  erro?: string | null;
 }
 
 export async function rodarE5(runId: number): Promise<E5State> {
@@ -330,6 +350,8 @@ export interface FatiasState {
   run_id: number;
   status: string;
   fatias: Fatia[];
+  // Presente quando o estágio falhou em background (status='erro').
+  erro?: string | null;
 }
 
 export async function rodarFatias(runId: number): Promise<FatiasState> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   type Epico,
@@ -10,6 +10,7 @@ import {
   gerarHistorias,
   getHistorias,
 } from "@/lib/api";
+import { useEstagio } from "@/lib/useEstagio";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -41,23 +42,13 @@ export default function HistoriasPanel({
   runId: number;
   onError: (m: string) => void;
 }) {
-  const [state, setState] = useState<HistoriasState | null>(null);
+  const { state, setState, rodando, erro, disparar } = useEstagio<HistoriasState>(
+    () => getHistorias(runId),
+    () => gerarHistorias(runId),
+    onError,
+  );
   const [decisoes, setDecisoes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    try {
-      const s = await getHistorias(runId);
-      if (s.historias.length > 0) setState(s);
-    } catch {
-      /* sem histórias ainda */
-    }
-  }, [runId]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch pós-await
-    refresh();
-  }, [refresh]);
 
   async function run(fn: () => Promise<HistoriasState>) {
     setLoading(true);
@@ -81,20 +72,33 @@ export default function HistoriasPanel({
         Histórias de Usuário — INVEST + Gherkin (E4)
       </h2>
 
-      {!state && (
-        <button onClick={() => run(() => gerarHistorias(runId))} disabled={loading} style={btn}>
-          {loading ? "Gerando (valida matriz RN↔US)…" : "Gerar histórias"}
-        </button>
+      {(!state || state.status === "erro") && (
+        <>
+          <button onClick={disparar} disabled={rodando} style={btn}>
+            Gerar histórias
+          </button>
+          <p style={{ opacity: 0.5, fontSize: "0.8rem" }}>
+            exige RNs aprovadas na E3 (a aprovação bloqueia o avanço).
+          </p>
+        </>
       )}
-      {!state && (
-        <p style={{ opacity: 0.5, fontSize: "0.8rem" }}>
-          exige RNs aprovadas na E3 (a aprovação bloqueia o avanço).
+
+      {rodando && (
+        <p style={{ opacity: 0.7 }}>
+          Gerando (valida matriz RN↔US)… leva alguns minutos; pode fechar a aba
+          e voltar depois.
+        </p>
+      )}
+
+      {erro && (
+        <p style={{ color: "#f87171", marginTop: 8 }}>
+          A geração falhou: {erro}. Clique para tentar de novo.
         </p>
       )}
 
       {loading && state && <p style={{ opacity: 0.7 }}>Processando…</p>}
 
-      {state && !loading && (
+      {state && !loading && !rodando && state.status !== "erro" && (
         <>
           {state.epicos.map((ep) => (
             <EpicoBloco

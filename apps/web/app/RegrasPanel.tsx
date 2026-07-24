@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   type Contestacao,
@@ -12,6 +12,7 @@ import {
   getRegras,
   resolverContestacao,
 } from "@/lib/api";
+import { useEstagio } from "@/lib/useEstagio";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -62,26 +63,16 @@ export default function RegrasPanel({
   runId: number;
   onError: (m: string) => void;
 }) {
-  const [state, setState] = useState<RegrasState | null>(null);
+  const { state, setState, rodando, erro, disparar } = useEstagio<RegrasState>(
+    () => getRegras(runId),
+    () => extrairRegras(runId),
+    onError,
+  );
   const [decisoes, setDecisoes] = useState<Record<string, string>>({});
   const [motivos, setMotivos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [contest, setContest] = useState<Contestacao | null>(null);
   const [respContest, setRespContest] = useState<Record<string, string>>({});
-
-  const refresh = useCallback(async () => {
-    try {
-      const s = await getRegras(runId);
-      if (s.regras.length > 0 || s.status !== "concluido") setState(s);
-    } catch {
-      /* sem regras ainda */
-    }
-  }, [runId]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch pós-await
-    refresh();
-  }, [refresh]);
 
   async function run(fn: () => Promise<RegrasState>) {
     setLoading(true);
@@ -130,15 +121,28 @@ export default function RegrasPanel({
         Regras de Negócio — extração + refino (E3)
       </h2>
 
-      {!state && (
-        <button onClick={() => run(() => extrairRegras(runId))} disabled={loading} style={btn}>
-          {loading ? "Extraindo (3× em paralelo → crítico ⇄ refinador)…" : "Extrair regras"}
+      {(!state || state.status === "erro") && (
+        <button onClick={disparar} disabled={rodando} style={btn}>
+          Extrair regras
         </button>
+      )}
+
+      {rodando && (
+        <p style={{ opacity: 0.7 }}>
+          Extraindo (3× em paralelo → crítico ⇄ refinador)… leva alguns minutos;
+          pode fechar a aba e voltar depois.
+        </p>
+      )}
+
+      {erro && (
+        <p style={{ color: "#f87171", marginTop: 8 }}>
+          A extração falhou: {erro}. Clique para tentar de novo.
+        </p>
       )}
 
       {loading && state && <p style={{ opacity: 0.7 }}>Processando…</p>}
 
-      {state && !loading && (
+      {state && !loading && !rodando && state.status !== "erro" && (
         <>
           {aguardando && (
             <p style={{ opacity: 0.7, marginTop: 0 }}>

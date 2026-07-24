@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-
 import { type E5State, getE5, rodarE5 } from "@/lib/api";
+import { useEstagio } from "@/lib/useEstagio";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -44,33 +43,11 @@ export default function E5Panel({
   runId: number;
   onError: (m: string) => void;
 }) {
-  const [state, setState] = useState<E5State | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    try {
-      const s = await getE5(runId);
-      if (s.adr || s.historias.length > 0) setState(s);
-    } catch {
-      /* sem E5 ainda */
-    }
-  }, [runId]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch pós-await
-    refresh();
-  }, [refresh]);
-
-  async function run() {
-    setLoading(true);
-    try {
-      setState(await rodarE5(runId));
-    } catch (e) {
-      onError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { state, rodando, erro, disparar } = useEstagio<E5State>(
+    () => getE5(runId),
+    () => rodarE5(runId),
+    onError,
+  );
 
   return (
     <section style={card}>
@@ -78,10 +55,10 @@ export default function E5Panel({
         Arquitetura ∥ Testes (E5)
       </h2>
 
-      {!state && (
+      {(!state || state.status === "erro") && (
         <>
-          <button onClick={run} disabled={loading} style={btn}>
-            {loading ? "Rodando arquiteto ∥ designer (paralelo)…" : "Rodar E5"}
+          <button onClick={disparar} disabled={rodando} style={btn}>
+            Rodar E5
           </button>
           <p style={{ opacity: 0.5, fontSize: "0.8rem" }}>
             exige histórias aprovadas na E4.
@@ -89,9 +66,20 @@ export default function E5Panel({
         </>
       )}
 
-      {loading && state && <p style={{ opacity: 0.7 }}>Processando…</p>}
+      {rodando && (
+        <p style={{ opacity: 0.7 }}>
+          Rodando arquiteto ∥ designer (paralelo)… leva alguns minutos; pode
+          fechar a aba e voltar depois.
+        </p>
+      )}
 
-      {state?.adr && !loading && (
+      {erro && (
+        <p style={{ color: "#f87171", marginTop: 8 }}>
+          A E5 falhou: {erro}. Clique para tentar de novo.
+        </p>
+      )}
+
+      {state?.adr && !rodando && (
         <div style={{ marginTop: 8 }}>
           <h3 style={{ fontSize: "0.95rem", color: "#93c5fd" }}>{state.adr.title}</h3>
           <Campo titulo="Contexto" texto={state.adr.context} />
@@ -101,7 +89,7 @@ export default function E5Panel({
         </div>
       )}
 
-      {state && state.historias.length > 0 && !loading && (
+      {state && state.historias.length > 0 && !rodando && (
         <div style={{ marginTop: 16 }}>
           <h3 style={{ fontSize: "0.95rem" }}>Cenários de teste por história</h3>
           {state.historias.map((h) => (

@@ -1,8 +1,34 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createProject, criarNota, listarNotas, uploadText } from "./api";
+import {
+  createProject,
+  criarNota,
+  estaRodando,
+  listarNotas,
+  uploadText,
+} from "./api";
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("estaRodando", () => {
+  it("reconhece o estágio em execução no servidor", () => {
+    expect(estaRodando({ status: "rodando" })).toBe(true);
+  });
+
+  it("não considera em execução um estágio concluído", () => {
+    expect(estaRodando({ status: "aguardando_aprovacao" })).toBe(false);
+  });
+
+  it("não considera em execução um estágio que falhou", () => {
+    expect(estaRodando({ status: "erro", erro: "provider caiu" })).toBe(false);
+  });
+
+  it("trata estado ausente como parado", () => {
+    // Primeira renderização, antes da primeira resposta: o botão precisa
+    // estar habilitado, senão a UI nasce travada.
+    expect(estaRodando(null)).toBe(false);
+  });
+});
 
 describe("api client", () => {
   it("createProject envia POST com o nome", async () => {
