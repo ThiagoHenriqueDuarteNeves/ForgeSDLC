@@ -285,7 +285,12 @@ function ProjectPanel({
         )}
       </section>
 
-      <GrillPanel projectId={project.id} onError={onError} onRun={setRunId} />
+      <GrillPanel
+        projectId={project.id}
+        runId={runId}
+        onError={onError}
+        onRun={setRunId}
+      />
       {runId !== null && (
         <>
           <RegrasPanel key={`r-${runId}`} runId={runId} onError={onError} />

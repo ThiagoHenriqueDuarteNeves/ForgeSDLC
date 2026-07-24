@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import { type GrillState, answerRun, startRun } from "@/lib/api";
+import { type GrillState, answerRun, getRun, startRun } from "@/lib/api";
 
 const card = {
   padding: "1.25rem 1.5rem",
@@ -24,16 +24,48 @@ const btn = {
 
 export default function GrillPanel({
   projectId,
+  runId,
   onError,
   onRun,
 }: {
   projectId: number;
+  runId?: number | null;
   onError: (m: string) => void;
   onRun?: (runId: number) => void;
 }) {
   const [state, setState] = useState<GrillState | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  // Reabrir um run existente. Sem isto, uma entrevista interrompida no meio
+  // fica no banco sem porta de entrada: o único caminho era `startRun`, que
+  // começa do zero — e o backend recusa (409) enquanto houver run ativo.
+  // Não chamamos onRun aqui: quem manda o runId é o pai, avisá-lo de volta
+  // só devolveria o valor que ele já tem.
+  useEffect(() => {
+    if (runId == null || runId === state?.run_id) return;
+    let cancelado = false;
+    // `cancelado` evita aplicar a resposta de um run que já não é o aberto:
+    // trocar de run rápido dispara duas buscas, e a mais lenta chegaria por último.
+    async function carregar(id: number) {
+      setLoading(true);
+      try {
+        const s = await getRun(id);
+        if (cancelado) return;
+        setState(s);
+        setAnswers({});
+      } catch (e) {
+        if (!cancelado) onError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    }
+    carregar(runId);
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId]);
 
   async function run(fn: () => Promise<GrillState>) {
     setLoading(true);
