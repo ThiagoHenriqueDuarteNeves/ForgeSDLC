@@ -50,7 +50,8 @@ async def _budget_exceeded_handler(request: Request, exc: BudgetExceeded) -> JSO
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_methods=["GET", "POST"],
+    # PATCH: a web muda o status de uma fatia (E6) via PATCH cross-origin.
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["*"],
 )
 
